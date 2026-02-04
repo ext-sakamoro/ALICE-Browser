@@ -1,0 +1,58 @@
+[package]
+name = "alice-browser"
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+description = "The Web Recompiled — Semantic browser powered by ALICE ecosystem"
+repository = "https://github.com/ext-sakamoro/ALICE-Browser"
+keywords = ["browser", "sdf", "ternary", "gpu", "semantic-web"]
+
+[[bin]]
+name = "alice-browser"
+path = "src/main.rs"
+
+[lib]
+name = "alice_browser"
+path = "src/lib.rs"
+
+[dependencies]
+# Web fetching & parsing
+reqwest = { version = "0.12", features = ["blocking"] }
+scraper = "0.20"
+url = "2"
+
+# GUI
+eframe = "0.29"
+egui = "0.29"
+
+# Image decoding
+image = { version = "0.25", default-features = false, features = ["jpeg", "png", "gif", "webp"] }
+
+# Utilities
+log = "0.4"
+env_logger = "0.11"
+
+# Parallel rendering
+rayon = "1.10"
+
+# ALICE ecosystem (optional, path dependencies)
+alice-ml = { path = "../ALICE-ML", optional = true }
+alice-sdf = { path = "../ALICE-SDF", default-features = false, features = ["gpu"], optional = true }
+alice-cache = { path = "../ALICE-Cache", optional = true }
+alice-search = { path = "../ALICE-Search", optional = true }
+alice-analytics = { path = "../ALICE-Analytics", optional = true }
+
+# GPU rendering (same versions as ALICE-SDF)
+wgpu = { version = "23", optional = true }
+pollster = { version = "0.4", optional = true }
+bytemuck = { version = "1.21", features = ["derive"], optional = true }
+
+[features]
+default = ["sdf-render"]
+ml-filter = ["dep:alice-ml"]
+sdf-render = ["dep:alice-sdf", "dep:wgpu", "dep:pollster", "dep:bytemuck"]
+smart-cache = ["dep:alice-cache"]
+search = ["dep:alice-search"]
+telemetry = ["dep:alice-analytics"]
+mobile = ["smart-cache", "search"]
+alice-full = ["ml-filter", "sdf-render", "smart-cache", "search", "telemetry"]
