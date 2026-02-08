@@ -1,11 +1,11 @@
 [package]
 name = "alice-browser"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
-description = "The Web Recompiled — Semantic browser powered by ALICE ecosystem"
+description = "The Web Recompiled — Semantic browser powered by ALICE ecosystem. Deep-Fried Rust: SoA+SIMD, Branchless, FMA, Division Exorcism."
 repository = "https://github.com/ext-sakamoro/ALICE-Browser"
-keywords = ["browser", "sdf", "ternary", "gpu", "semantic-web"]
+keywords = ["browser", "sdf", "ternary", "simd", "mobile"]
 
 [[bin]]
 name = "alice-browser"
@@ -56,3 +56,19 @@ search = ["dep:alice-search"]
 telemetry = ["dep:alice-analytics"]
 mobile = ["smart-cache", "search"]
 alice-full = ["ml-filter", "sdf-render", "smart-cache", "search", "telemetry"]
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+strip = true
+
+[profile.release.build-override]
+opt-level = 3
+
+[profile.bench]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+debug = false
