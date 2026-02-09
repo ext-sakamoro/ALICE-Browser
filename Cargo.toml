@@ -41,6 +41,7 @@ alice-sdf = { path = "../ALICE-SDF", default-features = false, features = ["gpu"
 alice-cache = { path = "../ALICE-Cache", optional = true }
 alice-search = { path = "../ALICE-Search", optional = true }
 alice-analytics = { path = "../ALICE-Analytics", optional = true }
+alice-text = { path = "../ALICE-Text", optional = true }
 
 # GPU rendering (same versions as ALICE-SDF)
 wgpu = { version = "23", optional = true }
@@ -54,6 +55,7 @@ sdf-render = ["dep:alice-sdf", "dep:wgpu", "dep:pollster", "dep:bytemuck"]
 smart-cache = ["dep:alice-cache"]
 search = ["dep:alice-search"]
 telemetry = ["dep:alice-analytics"]
+text = ["dep:alice-text"]
 mobile = ["smart-cache", "search"]
 alice-full = ["ml-filter", "sdf-render", "smart-cache", "search", "telemetry"]
 
