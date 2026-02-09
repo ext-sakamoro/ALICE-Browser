@@ -56,6 +56,7 @@ smart-cache = ["dep:alice-cache"]
 search = ["dep:alice-search"]
 telemetry = ["dep:alice-analytics"]
 text = ["dep:alice-text"]
+cache = ["dep:alice-cache"]  # ALICE-Cache DOM classification caching
 mobile = ["smart-cache", "search"]
 alice-full = ["ml-filter", "sdf-render", "smart-cache", "search", "telemetry"]
 

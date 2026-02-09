@@ -19,3 +19,6 @@ pub mod telemetry;
 
 #[cfg(feature = "text")]
 pub mod text_bridge;
+
+#[cfg(feature = "cache")]
+pub mod cache_bridge;
