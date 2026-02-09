@@ -68,6 +68,42 @@ cargo run --features alice-full
 cargo run --no-default-features
 ```
 
+## Cross-Crate Bridges
+
+ALICE-Browser connects to other ALICE ecosystem crates via feature-gated bridge modules:
+
+| Bridge | Feature | Target Crate | Description |
+|--------|---------|--------------|-------------|
+| `text_bridge` | `text` | [ALICE-Text](../ALICE-Text) | Advanced text shaping and rendering |
+| `cache_bridge` | `cache` | [ALICE-Cache](../ALICE-Cache) | DOM classification caching with FNV-1a content hashing |
+
+### Cache Bridge (feature: `cache`)
+
+Caches DOM node classification results (Content, Navigation, Ad, Tracker, Widget) using ALICE-Cache with FNV-1a content hashing. Avoids redundant ML inference for previously classified DOM patterns.
+
+```toml
+[dependencies]
+alice-browser = { path = "../ALICE-Browser", features = ["cache"] }
+```
+
+```rust
+use alice_browser::cache_bridge::{DomClassificationCache, DomClass, dom_node_hash};
+
+// Create cache (capacity = max entries)
+let cache = DomClassificationCache::new(10_000);
+
+// Compute content hash for a DOM node
+let hash = dom_node_hash("div", "sidebar ad-container", "https://example.com");
+
+// Store classification
+cache.put(hash, DomClass::Ad);
+
+// Lookup (O(1) via ALICE-Cache)
+if let Some(class) = cache.get(hash) {
+    // Skip ML inference, use cached result
+}
+```
+
 ## License
 
 Licensed under either of:
