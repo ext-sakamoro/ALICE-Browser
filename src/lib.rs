@@ -22,3 +22,21 @@ pub mod text_bridge;
 
 #[cfg(feature = "cache")]
 pub mod cache_bridge;
+
+#[cfg(feature = "search")]
+pub mod search_bridge;
+
+#[cfg(feature = "telemetry")]
+pub mod analytics_bridge;
+
+#[cfg(feature = "cdn")]
+pub mod cdn_bridge;
+
+#[cfg(feature = "view-sdf")]
+pub mod view_bridge;
+
+#[cfg(feature = "sdf-web")]
+pub mod sdf_bridge;
+
+#[cfg(feature = "voice-web")]
+pub mod voice_bridge;

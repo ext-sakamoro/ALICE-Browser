@@ -42,6 +42,7 @@ alice-cache = { path = "../ALICE-Cache", optional = true }
 alice-search = { path = "../ALICE-Search", optional = true }
 alice-analytics = { path = "../ALICE-Analytics", optional = true }
 alice-text = { path = "../ALICE-Text", optional = true }
+alice-cdn = { path = "../ALICE-CDN", optional = true }
 
 # GPU rendering (same versions as ALICE-SDF)
 wgpu = { version = "23", optional = true }
@@ -58,7 +59,11 @@ telemetry = ["dep:alice-analytics"]
 text = ["dep:alice-text"]
 cache = ["dep:alice-cache"]  # ALICE-Cache DOM classification caching
 mobile = ["smart-cache", "search"]
-alice-full = ["ml-filter", "sdf-render", "smart-cache", "search", "telemetry"]
+cdn = ["dep:alice-cdn"]  # ALICE-CDN Vivaldi coordinate routing
+view-sdf = []  # SDF-based resolution-independent UI
+sdf-web = []  # Web SDF scene evaluation
+voice-web = []  # Browser voice activity detection
+alice-full = ["ml-filter", "sdf-render", "smart-cache", "search", "telemetry", "cdn", "view-sdf", "sdf-web", "voice-web"]
 
 [profile.release]
 opt-level = 3
