@@ -48,6 +48,10 @@ ALICE-Browser is a next-generation web browser that replaces the traditional HTM
 | `smart-cache` | Predictive caching | ALICE-Cache |
 | `search` | Local full-text search | ALICE-Search |
 | `telemetry` | Privacy analytics | ALICE-Analytics |
+| `cdn` | ALICE-CDN Vivaldi coordinate routing | ALICE-CDN |
+| `view-sdf` | SDF-based resolution-independent UI | ALICE-View |
+| `sdf-web` | Web SDF scene evaluation | ALICE-SDF |
+| `voice-web` | Browser voice activity detection | ALICE-Voice |
 | `mobile` | Mobile optimized | Cache + Search |
 | `alice-full` | All ALICE features | All above |
 
@@ -103,6 +107,61 @@ if let Some(class) = cache.get(hash) {
     // Skip ML inference, use cached result
 }
 ```
+
+### ALICE-Search Bridge (feature: `search`)
+
+In-page full-text search using FM-Index.
+
+- `DomSearchIndex` — FM-Index wrapper for DOM text content
+- In-page search with O(m) backward search complexity
+
+Enable: `alice-browser = { features = ["search"] }`
+
+### ALICE-Analytics Bridge (feature: `telemetry`)
+
+Browser telemetry with streaming aggregation.
+
+- `BrowserMetrics` — DDSketch (page load latency), HyperLogLog (unique domains), CountMinSketch (hot URLs)
+- `record_navigation()` / `record_resource()` — Record browser events
+
+Enable: `alice-browser = { features = ["telemetry"] }`
+
+### ALICE-CDN Bridge (feature: `cdn`)
+
+Vivaldi coordinate-based content routing.
+
+- `BrowserCdnRouter` — Nearest-node selection via Vivaldi coordinates
+- `route_request()` — Route content requests to optimal edge node
+
+Enable: `alice-browser = { features = ["cdn"] }`
+
+### ALICE-View (SDF UI) Bridge (feature: `view-sdf`)
+
+Resolution-independent UI primitives via SDF rendering.
+
+- `SdfUiBatch` / `SdfUiCommand` — Batched SDF UI draw commands
+- `sdf_rounded_rect()` — Infinite-resolution rounded rectangles
+
+Enable: `alice-browser = { features = ["view-sdf"] }`
+
+### ALICE-SDF Bridge (feature: `sdf-web`)
+
+Web SDF scene evaluation and sphere tracing.
+
+- `WebSdfScene` / `WebSdfPrimitive` — Sphere, Box, Cylinder primitives
+- `eval_scene()` / `sphere_trace()` — SDF evaluation and ray marching
+
+Enable: `alice-browser = { features = ["sdf-web"] }`
+
+### ALICE-Voice Bridge (feature: `voice-web`)
+
+Browser voice activity detection and audio processing.
+
+- `BrowserVoiceSession` — Voice activity detection + downsampling
+- `detect_voice_activity()` — Energy-based VAD
+- `downsample_to_16k()` — Resample to 16kHz for codec input
+
+Enable: `alice-browser = { features = ["voice-web"] }`
 
 ## License
 
