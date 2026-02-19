@@ -1,0 +1,195 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    name: Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Create ALICE-ML stub
+        shell: bash
+        run: |
+          mkdir -p ../ALICE-ML/src
+          cat > ../ALICE-ML/Cargo.toml << 'TOML'
+          [package]
+          name = "alice-ml"
+          version = "0.1.0"
+          edition = "2021"
+          [lib]
+          path = "src/lib.rs"
+          TOML
+          echo "" > ../ALICE-ML/src/lib.rs
+
+      - name: Create ALICE-SDF stub
+        shell: bash
+        run: |
+          mkdir -p ../ALICE-SDF/src
+          cat > ../ALICE-SDF/Cargo.toml << 'TOML'
+          [package]
+          name = "alice-sdf"
+          version = "0.1.0"
+          edition = "2021"
+          [features]
+          default = []
+          gpu = []
+          [lib]
+          path = "src/lib.rs"
+          TOML
+          echo "" > ../ALICE-SDF/src/lib.rs
+
+      - name: Create ALICE-Cache stub
+        shell: bash
+        run: |
+          mkdir -p ../ALICE-Cache/src
+          cat > ../ALICE-Cache/Cargo.toml << 'TOML'
+          [package]
+          name = "alice-cache"
+          version = "0.1.0"
+          edition = "2021"
+          [lib]
+          path = "src/lib.rs"
+          TOML
+          echo "" > ../ALICE-Cache/src/lib.rs
+
+      - name: Create ALICE-Search stub
+        shell: bash
+        run: |
+          mkdir -p ../ALICE-Search/src
+          cat > ../ALICE-Search/Cargo.toml << 'TOML'
+          [package]
+          name = "alice-search"
+          version = "0.1.0"
+          edition = "2021"
+          [lib]
+          path = "src/lib.rs"
+          TOML
+          echo "" > ../ALICE-Search/src/lib.rs
+
+      - name: Create ALICE-Analytics stub
+        shell: bash
+        run: |
+          mkdir -p ../ALICE-Analytics/src
+          cat > ../ALICE-Analytics/Cargo.toml << 'TOML'
+          [package]
+          name = "alice-analytics"
+          version = "0.1.0"
+          edition = "2021"
+          [lib]
+          path = "src/lib.rs"
+          TOML
+          echo "" > ../ALICE-Analytics/src/lib.rs
+
+      - name: Create ALICE-Text stub
+        shell: bash
+        run: |
+          mkdir -p ../ALICE-Text/src
+          cat > ../ALICE-Text/Cargo.toml << 'TOML'
+          [package]
+          name = "alice-text"
+          version = "0.1.0"
+          edition = "2021"
+          [lib]
+          path = "src/lib.rs"
+          TOML
+          echo "" > ../ALICE-Text/src/lib.rs
+
+      - name: Create ALICE-CDN stub
+        shell: bash
+        run: |
+          mkdir -p ../ALICE-CDN/src
+          cat > ../ALICE-CDN/Cargo.toml << 'TOML'
+          [package]
+          name = "alice-cdn"
+          version = "0.1.0"
+          edition = "2021"
+          [lib]
+          path = "src/lib.rs"
+          TOML
+          echo "" > ../ALICE-CDN/src/lib.rs
+
+      - name: Build (no default features)
+        run: cargo build --lib --no-default-features
+
+      - name: Build (default)
+        run: cargo build --lib
+
+      - name: Test (default)
+        run: cargo test --lib
+
+      - name: Build (ml-filter)
+        run: cargo build --lib --no-default-features --features "ml-filter"
+
+      - name: Build (search + cache)
+        run: cargo build --lib --no-default-features --features "search,cache"
+
+      - name: Build (telemetry + cdn)
+        run: cargo build --lib --no-default-features --features "telemetry,cdn"
+
+  clippy:
+    name: Clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Create dependency stubs
+        run: |
+          for crate in ALICE-ML ALICE-SDF ALICE-Cache ALICE-Search ALICE-Analytics ALICE-Text ALICE-CDN; do
+            pkg=$(echo "$crate" | tr '[:upper:]' '[:lower:]' | sed 's/^alice-/alice-/')
+            mkdir -p "../$crate/src"
+            cat > "../$crate/Cargo.toml" << TOML
+          [package]
+          name = "$pkg"
+          version = "0.1.0"
+          edition = "2021"
+          [features]
+          default = []
+          gpu = []
+          [lib]
+          path = "src/lib.rs"
+          TOML
+            echo "" > "../$crate/src/lib.rs"
+          done
+
+      - name: Clippy
+        run: cargo clippy --lib -- --cap-lints warn
+        continue-on-error: true
+
+  fmt:
+    name: Format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+
+      - name: Check formatting
+        run: cargo fmt -- --check
