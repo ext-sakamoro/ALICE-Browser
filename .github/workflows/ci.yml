@@ -144,6 +144,15 @@ jobs:
       - name: Build (telemetry + cdn)
         run: cargo build --lib --no-default-features --features "telemetry,cdn"
 
+      - name: Build (text) [T3]
+        run: cargo build --lib --no-default-features --features "text"
+
+      - name: Build (mobile meta) [T2]
+        run: cargo build --lib --no-default-features --features "mobile"
+
+      - name: Build (alice-full) [T4]
+        run: cargo build --lib --features "alice-full"
+
   clippy:
     name: Clippy
     runs-on: ubuntu-latest
