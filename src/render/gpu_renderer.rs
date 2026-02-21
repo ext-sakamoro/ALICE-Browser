@@ -8,7 +8,7 @@
 //! - Per-primitive SDFs are generated inline for color lookup
 //! - A single compute dispatch renders all pixels in parallel
 
-use alice_sdf::compiled::WgslShader;
+use alice_sdf::compiled::{TranspileMode, WgslShader};
 use alice_sdf::prelude::*;
 use wgpu::util::DeviceExt;
 
@@ -343,7 +343,7 @@ fn generate_shader(scene: &SdfScene) -> String {
         .map(|p| primitive_to_node(p).0)
         .collect();
     let union_tree = build_balanced_union(&nodes);
-    let sdf_shader = WgslShader::transpile(&union_tree);
+    let sdf_shader = WgslShader::transpile(&union_tree, TranspileMode::Hardcoded);
     let sdf_eval_src = sdf_shader.source; // contains helpers + fn sdf_eval(...)
 
     // 2. Generate per-primitive SDF functions for color lookup
