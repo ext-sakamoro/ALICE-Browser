@@ -233,7 +233,7 @@ impl StreamState {
 
         let mut particles = Vec::new();
         let mut next_id: usize = 0;
-        let mut pool_cursor: usize = 0;
+        let pool_cursor: usize;
 
         // ── Upper Ring ──
         let upper_count = UPPER_SLOTS.min(upper_pool.len().max(1) * 2);

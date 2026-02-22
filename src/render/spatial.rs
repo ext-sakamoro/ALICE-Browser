@@ -923,7 +923,7 @@ fn collect_headlines_recursive(
 }
 
 /// Extract a short label from a node.
-fn extract_label(node: &LayoutNode) -> String {
+fn _extract_label(node: &LayoutNode) -> String {
     let text = collect_text(node);
     if !text.is_empty() {
         return text.chars().take(12).collect();
@@ -936,7 +936,7 @@ fn extract_label(node: &LayoutNode) -> String {
 
 /// Extract a category name for OZ Orbital Labels.
 /// Tries headings first, then tag name, then first few words of text.
-fn extract_oz_category(node: &LayoutNode) -> String {
+fn _extract_oz_category(node: &LayoutNode) -> String {
     // Check for heading children (h1-h6)
     for child in &node.children {
         if matches!(
