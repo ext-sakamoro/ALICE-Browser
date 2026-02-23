@@ -11,7 +11,6 @@
 ///
 /// All text faces the center (billboarding), so it's always readable.
 /// Drag to look around; click to grab & inspect.
-
 use crate::render::layout::LayoutNode;
 use crate::render::sdf_ui::SdfScene;
 
@@ -33,7 +32,7 @@ pub struct TextMeta {
     pub full_text: String,
     /// HTML tag (h1, a, p, etc.)
     pub tag: String,
-    /// Link URL if this is an <a> tag
+    /// Link URL if this is an `<a>` tag
     pub href: Option<String>,
     /// Category index
     pub category_index: usize,
@@ -233,18 +232,20 @@ impl StreamState {
 
         let mut particles = Vec::new();
         let mut next_id: usize = 0;
-        let pool_cursor: usize;
 
         // ── Upper Ring ──
         let upper_count = UPPER_SLOTS.min(upper_pool.len().max(1) * 2);
         for slot in 0..upper_count {
-            if upper_pool.is_empty() { break; }
+            if upper_pool.is_empty() {
+                break;
+            }
             let pool_idx = upper_pool[slot % upper_pool.len()];
             let meta = &text_pool[pool_idx];
             let base_angle = (slot as f32 / upper_count as f32) * std::f32::consts::TAU;
             let jitter_a = (stream_hash(next_id * 37) - 0.5) * 2.0 * ANGULAR_JITTER;
             let y = UPPER_Y_MIN + stream_hash(next_id * 53) * (UPPER_Y_MAX - UPPER_Y_MIN);
-            let lifetime = LIFETIME_MIN + meta.importance * (LIFETIME_MAX - LIFETIME_MIN)
+            let lifetime = LIFETIME_MIN
+                + meta.importance * (LIFETIME_MAX - LIFETIME_MIN)
                 + stream_hash(next_id * 71) * 3.0;
             let age = stream_hash(next_id * 19) * lifetime;
 
@@ -268,7 +269,9 @@ impl StreamState {
         // ── Eye Level (multiple rows) ──
         let eye_total = (EYE_SLOTS * EYE_ROWS).min(eye_pool.len().max(1) * 3);
         for slot in 0..eye_total {
-            if eye_pool.is_empty() { break; }
+            if eye_pool.is_empty() {
+                break;
+            }
             let pool_idx = eye_pool[slot % eye_pool.len()];
             let meta = &text_pool[pool_idx];
             let row = slot / EYE_SLOTS;
@@ -276,10 +279,16 @@ impl StreamState {
             let slots_in_row = EYE_SLOTS;
             let base_angle = (col as f32 / slots_in_row as f32) * std::f32::consts::TAU;
             let jitter_a = (stream_hash(next_id * 37) - 0.5) * 2.0 * ANGULAR_JITTER;
-            let row_frac = if EYE_ROWS <= 1 { 0.5 } else { row as f32 / (EYE_ROWS - 1) as f32 };
-            let y = EYE_Y_MIN + row_frac * (EYE_Y_MAX - EYE_Y_MIN)
+            let row_frac = if EYE_ROWS <= 1 {
+                0.5
+            } else {
+                row as f32 / (EYE_ROWS - 1) as f32
+            };
+            let y = EYE_Y_MIN
+                + row_frac * (EYE_Y_MAX - EYE_Y_MIN)
                 + (stream_hash(next_id * 53) - 0.5) * 2.0 * Y_JITTER;
-            let lifetime = LIFETIME_MIN + meta.importance * (LIFETIME_MAX - LIFETIME_MIN)
+            let lifetime = LIFETIME_MIN
+                + meta.importance * (LIFETIME_MAX - LIFETIME_MIN)
                 + stream_hash(next_id * 71) * 3.0;
             let age = stream_hash(next_id * 19) * lifetime;
 
@@ -303,13 +312,16 @@ impl StreamState {
         // ── Lower Ring ──
         let lower_count = LOWER_SLOTS.min(lower_pool.len().max(1) * 2);
         for slot in 0..lower_count {
-            if lower_pool.is_empty() { break; }
+            if lower_pool.is_empty() {
+                break;
+            }
             let pool_idx = lower_pool[slot % lower_pool.len()];
             let meta = &text_pool[pool_idx];
             let base_angle = (slot as f32 / lower_count as f32) * std::f32::consts::TAU;
             let jitter_a = (stream_hash(next_id * 37) - 0.5) * 2.0 * ANGULAR_JITTER;
             let y = LOWER_Y_MIN + stream_hash(next_id * 53) * (LOWER_Y_MAX - LOWER_Y_MIN);
-            let lifetime = LIFETIME_MIN + meta.importance * (LIFETIME_MAX - LIFETIME_MIN)
+            let lifetime = LIFETIME_MIN
+                + meta.importance * (LIFETIME_MAX - LIFETIME_MIN)
                 + stream_hash(next_id * 71) * 3.0;
             let age = stream_hash(next_id * 19) * lifetime;
 
@@ -330,7 +342,7 @@ impl StreamState {
             next_id += 1;
         }
 
-        pool_cursor = next_id;
+        let pool_cursor: usize = next_id;
 
         StreamState {
             particles,
@@ -430,7 +442,8 @@ impl StreamState {
             RotundaLayer::Lower => (LOWER_Y_MIN, LOWER_Y_MAX),
         };
         p.y_pos = y_min + stream_hash(seed * 53) * (y_max - y_min);
-        p.lifetime = LIFETIME_MIN + importance * (LIFETIME_MAX - LIFETIME_MIN)
+        p.lifetime = LIFETIME_MIN
+            + importance * (LIFETIME_MAX - LIFETIME_MIN)
             + stream_hash(seed * 71) * 3.0;
         p.age = 0.0;
         p.grabbed = false;
@@ -485,10 +498,17 @@ impl StreamState {
 
     /// Try to grab the nearest visible particle to a screen click.
     /// `aspect` = screen width / height (must match rendering projection).
-    pub fn try_grab_screen(&mut self, click_ndc_x: f32, click_ndc_y: f32,
-                            cam_az: f32, cam_el: f32,
-                            fov_h: f32, _fov_v: f32,
-                            aspect: f32) -> Option<usize> {
+    #[allow(clippy::too_many_arguments)]
+    pub fn try_grab_screen(
+        &mut self,
+        click_ndc_x: f32,
+        click_ndc_y: f32,
+        cam_az: f32,
+        cam_el: f32,
+        fov_h: f32,
+        _fov_v: f32,
+        aspect: f32,
+    ) -> Option<usize> {
         let mut best_idx = None;
         let mut best_dist = f32::MAX;
 
@@ -499,7 +519,9 @@ impl StreamState {
         let tan_fov_h = fov_h.tan();
 
         for (i, p) in self.particles.iter().enumerate() {
-            if Self::particle_opacity(p) < 0.15 { continue; }
+            if Self::particle_opacity(p) < 0.15 {
+                continue;
+            }
 
             let world = Self::particle_world_pos(p, self.time);
             let wx = world[0];
@@ -516,7 +538,9 @@ impl StreamState {
             let rz = ry1 * sin_el + rz1 * cos_el;
 
             // Skip particles behind camera
-            if rz < 1.0 { continue; }
+            if rz < 1.0 {
+                continue;
+            }
 
             // Perspective projection (must match rendering in main.rs)
             let ndc_x = rx / (rz * tan_fov_h);
@@ -562,9 +586,13 @@ impl StreamState {
     pub fn grabbed_info(&self) -> Option<GrabbedInfo<'_>> {
         let idx = self.grabbed_index?;
         let p = self.particles.get(idx)?;
-        if !p.grabbed { return None; }
+        if !p.grabbed {
+            return None;
+        }
         let meta = self.text_pool.get(p.pool_index)?;
-        let cat_name = self.categories.get(p.category_index)
+        let cat_name = self
+            .categories
+            .get(p.category_index)
             .map(|c| c.name.as_str())
             .unwrap_or("INFO");
         Some(GrabbedInfo {
@@ -603,8 +631,13 @@ fn extract_category_name(node: &LayoutNode) -> String {
         _ => {
             let t = collect_text_content(node);
             if !t.is_empty() {
-                t.split_whitespace().take(2).collect::<Vec<_>>().join(" ")
-                    .chars().take(16).collect()
+                t.split_whitespace()
+                    .take(2)
+                    .collect::<Vec<_>>()
+                    .join(" ")
+                    .chars()
+                    .take(16)
+                    .collect()
             } else {
                 node.tag.to_uppercase()
             }
@@ -612,11 +645,7 @@ fn extract_category_name(node: &LayoutNode) -> String {
     }
 }
 
-fn collect_rich_texts(
-    node: &LayoutNode,
-    category_index: usize,
-    out: &mut Vec<TextMeta>,
-) {
+fn collect_rich_texts(node: &LayoutNode, category_index: usize, out: &mut Vec<TextMeta>) {
     let (importance, is_leaf) = match node.tag.as_str() {
         "h1" | "h2" => (1.0, true),
         "h3" | "h4" | "h5" | "h6" => (0.6, true),
@@ -641,17 +670,43 @@ fn collect_rich_texts(
                 let mut chunk = String::new();
                 for w in &words {
                     if !chunk.is_empty() && chunk.chars().count() + w.chars().count() > 50 {
-                        push_text_meta(out, &chunk, &full, &node.tag, &href, category_index, importance);
+                        push_text_meta(
+                            out,
+                            &chunk,
+                            &full,
+                            &node.tag,
+                            &href,
+                            category_index,
+                            importance,
+                        );
                         chunk.clear();
                     }
-                    if !chunk.is_empty() { chunk.push(' '); }
+                    if !chunk.is_empty() {
+                        chunk.push(' ');
+                    }
                     chunk.push_str(w);
                 }
                 if !chunk.is_empty() {
-                    push_text_meta(out, &chunk, &full, &node.tag, &href, category_index, importance);
+                    push_text_meta(
+                        out,
+                        &chunk,
+                        &full,
+                        &node.tag,
+                        &href,
+                        category_index,
+                        importance,
+                    );
                 }
             } else {
-                push_text_meta(out, &full, &full, &node.tag, &href, category_index, importance);
+                push_text_meta(
+                    out,
+                    &full,
+                    &full,
+                    &node.tag,
+                    &href,
+                    category_index,
+                    importance,
+                );
             }
         }
         return;
@@ -667,7 +722,15 @@ fn collect_rich_texts(
     if !node.tag.is_empty() && !is_leaf {
         let direct_text: String = node.text.trim().to_string();
         if direct_text.len() > 1 && direct_text.chars().count() < 60 {
-            push_text_meta(out, &direct_text, &direct_text, &node.tag, &node.href, category_index, 0.15);
+            push_text_meta(
+                out,
+                &direct_text,
+                &direct_text,
+                &node.tag,
+                &node.href,
+                category_index,
+                0.15,
+            );
         }
     }
 
@@ -686,7 +749,9 @@ fn push_text_meta(
     importance: f32,
 ) {
     let display: String = display_src.chars().take(40).collect();
-    if display.trim().is_empty() { return; }
+    if display.trim().is_empty() {
+        return;
+    }
     out.push(TextMeta {
         display,
         full_text: full_src.chars().take(300).collect(),
@@ -699,10 +764,8 @@ fn push_text_meta(
 
 fn find_child_href(node: &LayoutNode) -> Option<String> {
     for child in &node.children {
-        if child.tag == "a" {
-            if child.href.is_some() {
-                return child.href.clone();
-            }
+        if child.tag == "a" && child.href.is_some() {
+            return child.href.clone();
         }
         if let Some(href) = find_child_href(child) {
             return Some(href);
@@ -719,7 +782,9 @@ fn collect_text_content(node: &LayoutNode) -> String {
     for child in &node.children {
         let ct = collect_text_content(child);
         if !ct.is_empty() {
-            if !text.is_empty() { text.push(' '); }
+            if !text.is_empty() {
+                text.push(' ');
+            }
             text.push_str(&ct);
         }
     }

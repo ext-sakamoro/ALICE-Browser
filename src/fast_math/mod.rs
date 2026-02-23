@@ -181,7 +181,7 @@ pub fn batch_mul_scalar(data: &mut [f32], scalar: f32) {
     }
 }
 
-/// Batch FMA: data[i] = data[i] * a + b
+/// Batch FMA: `data[i] = data[i] * a + b`
 #[inline]
 pub fn batch_fma(data: &mut [f32], a: f32, b: f32) {
     for v in data.iter_mut() {
@@ -211,21 +211,33 @@ mod tests {
     fn test_fast_rcp() {
         let x = 4.0f32;
         let rcp = fast_rcp(x);
-        assert!((rcp - 0.25).abs() < 0.001, "fast_rcp(4) = {}, expected ~0.25", rcp);
+        assert!(
+            (rcp - 0.25).abs() < 0.001,
+            "fast_rcp(4) = {}, expected ~0.25",
+            rcp
+        );
     }
 
     #[test]
     fn test_fast_inv_sqrt() {
         let x = 4.0f32;
         let inv_sqrt = fast_inv_sqrt(x);
-        assert!((inv_sqrt - 0.5).abs() < 0.01, "fast_inv_sqrt(4) = {}, expected ~0.5", inv_sqrt);
+        assert!(
+            (inv_sqrt - 0.5).abs() < 0.01,
+            "fast_inv_sqrt(4) = {}, expected ~0.5",
+            inv_sqrt
+        );
     }
 
     #[test]
     fn test_fast_sqrt() {
         let x = 9.0f32;
         let sqrt = fast_sqrt(x);
-        assert!((sqrt - 3.0).abs() < 0.1, "fast_sqrt(9) = {}, expected ~3.0", sqrt);
+        assert!(
+            (sqrt - 3.0).abs() < 0.1,
+            "fast_sqrt(9) = {}, expected ~3.0",
+            sqrt
+        );
     }
 
     #[test]
@@ -275,5 +287,75 @@ mod tests {
         assert!((data[1] - 5.0).abs() < 1e-6);
         assert!((data[2] - 7.0).abs() < 1e-6);
         assert!((data[3] - 9.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_fma_chain() {
+        // a*b + c*d = 2*3 + 4*5 = 6 + 20 = 26
+        let result = fma_chain(2.0, 3.0, 4.0, 5.0);
+        assert!((result - 26.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_length_squared() {
+        // |<3,4>|^2 = 9 + 16 = 25
+        let ls = length_squared(3.0, 4.0);
+        assert!((ls - 25.0).abs() < 1e-6);
+
+        // |<0,0>|^2 = 0
+        assert!((length_squared(0.0, 0.0) - 0.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_deg_to_rad() {
+        let rad_180 = deg_to_rad(180.0);
+        assert!((rad_180 - std::f32::consts::PI).abs() < 1e-4);
+
+        let rad_90 = deg_to_rad(90.0);
+        assert!((rad_90 - std::f32::consts::FRAC_PI_2).abs() < 1e-4);
+
+        let rad_0 = deg_to_rad(0.0);
+        assert!((rad_0 - 0.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_normalize() {
+        let result = normalize(128.0, RECIPROCALS.inv_255);
+        assert!((result - 128.0 / 255.0).abs() < 1e-5);
+
+        let result_zero = normalize(0.0, RECIPROCALS.inv_255);
+        assert!((result_zero - 0.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_batch_mul_scalar() {
+        let mut data = [1.0, 2.0, 3.0, 4.0];
+        batch_mul_scalar(&mut data, 3.0);
+        assert!((data[0] - 3.0).abs() < 1e-6);
+        assert!((data[1] - 6.0).abs() < 1e-6);
+        assert!((data[2] - 9.0).abs() < 1e-6);
+        assert!((data[3] - 12.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_fast_sqrt_zero() {
+        assert!((fast_sqrt(0.0) - 0.0).abs() < 1e-6);
+        assert!((fast_sqrt(-1.0) - 0.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_fast_rcp_various() {
+        // Test reciprocals of several values
+        for &x in &[1.0, 2.0, 10.0, 100.0, 0.5] {
+            let rcp = fast_rcp(x);
+            let expected = 1.0 / x;
+            assert!(
+                (rcp - expected).abs() < 0.01,
+                "fast_rcp({}) = {}, expected {}",
+                x,
+                rcp,
+                expected
+            );
+        }
     }
 }
