@@ -28,98 +28,98 @@ impl BitMask64 {
 
     /// Create from a boolean condition per bit position
     #[inline(always)]
-    #[must_use] 
-    pub fn from_bool(val: bool) -> Self {
+    #[must_use]
+    pub const fn from_bool(val: bool) -> Self {
         Self(-(val as i64) as u64)
     }
 
     /// Set bit at position
     #[inline(always)]
-    pub fn set(&mut self, pos: usize) {
+    pub const fn set(&mut self, pos: usize) {
         self.0 |= 1u64 << pos;
     }
 
     /// Clear bit at position
     #[inline(always)]
-    pub fn clear(&mut self, pos: usize) {
+    pub const fn clear(&mut self, pos: usize) {
         self.0 &= !(1u64 << pos);
     }
 
     /// Test bit at position
     #[inline(always)]
-    #[must_use] 
-    pub fn test(&self, pos: usize) -> bool {
+    #[must_use]
+    pub const fn test(&self, pos: usize) -> bool {
         (self.0 >> pos) & 1 != 0
     }
 
     /// Branchless AND: intersection of two masks
     #[inline(always)]
-    #[must_use] 
-    pub fn and(self, rhs: Self) -> Self {
+    #[must_use]
+    pub const fn and(self, rhs: Self) -> Self {
         Self(self.0 & rhs.0)
     }
 
     /// Branchless OR: union of two masks
     #[inline(always)]
-    #[must_use] 
-    pub fn or(self, rhs: Self) -> Self {
+    #[must_use]
+    pub const fn or(self, rhs: Self) -> Self {
         Self(self.0 | rhs.0)
     }
 
     /// Branchless NOT: invert all bits
     #[allow(clippy::should_implement_trait)]
     #[inline(always)]
-    #[must_use] 
-    pub fn not(self) -> Self {
+    #[must_use]
+    pub const fn not(self) -> Self {
         Self(!self.0)
     }
 
     /// Branchless XOR
     #[inline(always)]
-    #[must_use] 
-    pub fn xor(self, rhs: Self) -> Self {
+    #[must_use]
+    pub const fn xor(self, rhs: Self) -> Self {
         Self(self.0 ^ rhs.0)
     }
 
     /// Count set bits (popcount) — uses hardware POPCNT instruction
     #[inline(always)]
-    #[must_use] 
-    pub fn count_ones(self) -> u32 {
+    #[must_use]
+    pub const fn count_ones(self) -> u32 {
         self.0.count_ones()
     }
 
     /// Leading zeros — useful for finding first set bit
     #[inline(always)]
-    #[must_use] 
-    pub fn leading_zeros(self) -> u32 {
+    #[must_use]
+    pub const fn leading_zeros(self) -> u32 {
         self.0.leading_zeros()
     }
 
     /// Trailing zeros — index of lowest set bit
     #[inline(always)]
-    #[must_use] 
-    pub fn trailing_zeros(self) -> u32 {
+    #[must_use]
+    pub const fn trailing_zeros(self) -> u32 {
         self.0.trailing_zeros()
     }
 
     /// Is any bit set?
     #[inline(always)]
-    #[must_use] 
-    pub fn any(self) -> bool {
+    #[must_use]
+    pub const fn any(self) -> bool {
         self.0 != 0
     }
 
     /// Are all bits set?
     #[inline(always)]
-    #[must_use] 
-    pub fn all(self) -> bool {
+    #[must_use]
+    pub const fn all(self) -> bool {
         self.0 == u64::MAX
     }
 
     /// Is no bit set?
     #[inline(always)]
-    #[must_use] 
-    pub fn none(self) -> bool {
+    #[must_use]
+    pub const fn none(self) -> bool {
         self.0 == 0
     }
 
@@ -147,8 +147,8 @@ impl BitMask64 {
 
     /// Iterate over set bit positions (useful for sparse operations)
     #[inline]
-    #[must_use] 
-    pub fn iter_set_bits(self) -> SetBitIterator {
+    #[must_use]
+    pub const fn iter_set_bits(self) -> SetBitIterator {
         SetBitIterator(self.0)
     }
 }
@@ -182,7 +182,7 @@ pub struct ComparisonMask;
 impl ComparisonMask {
     /// Create mask where `slice[i] > threshold`
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn gt(slice: &[f32], threshold: f32) -> BitMask64 {
         let mut mask = BitMask64::ALL_FALSE;
         let len = slice.len().min(64);
@@ -197,7 +197,7 @@ impl ComparisonMask {
 
     /// Create mask where `slice[i] == value`
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn eq_i32(slice: &[i32], value: i32) -> BitMask64 {
         let mut mask = BitMask64::ALL_FALSE;
         let len = slice.len().min(64);
@@ -211,7 +211,7 @@ impl ComparisonMask {
 
     /// Create mask where `slice[i] != 0.0` (truthy)
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn nonzero(slice: &[f32]) -> BitMask64 {
         let mut mask = BitMask64::ALL_FALSE;
         let len = slice.len().min(64);
@@ -347,8 +347,7 @@ mod tests {
     #[test]
     fn test_set_bit_iterator_empty() {
         let m = BitMask64::ALL_FALSE;
-        let bits: Vec<usize> = m.iter_set_bits().collect();
-        assert!(bits.is_empty());
+        assert!(m.iter_set_bits().next().is_none());
     }
 
     #[test]

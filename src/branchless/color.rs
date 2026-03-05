@@ -43,7 +43,7 @@ impl Rgba {
 
     /// Convert to normalized f32 (for rendering)
     #[inline(always)]
-    #[must_use] 
+    #[must_use]
     pub fn to_f32(self) -> [f32; 4] {
         const INV_255: f32 = 1.0 / 255.0; // Division exorcism
         [
@@ -67,7 +67,7 @@ impl Rgba {
 ///
 /// Zero branches. Zero pipeline flushes. Pure arithmetic.
 #[inline(always)]
-fn hex_digit_branchless(b: u8) -> u8 {
+const fn hex_digit_branchless(b: u8) -> u8 {
     let is_digit = (b.wrapping_sub(b'0') < 10) as u8;
     let is_lower = (b.wrapping_sub(b'a') < 6) as u8;
     let is_upper = (b.wrapping_sub(b'A') < 6) as u8;
@@ -85,7 +85,7 @@ fn hex_digit_branchless(b: u8) -> u8 {
 
 /// Parse a hex byte (two hex chars) branchlessly.
 #[inline(always)]
-fn hex_byte_branchless(hi: u8, lo: u8) -> u8 {
+const fn hex_byte_branchless(hi: u8, lo: u8) -> u8 {
     (hex_digit_branchless(hi) << 4) | hex_digit_branchless(lo)
 }
 
@@ -94,7 +94,7 @@ fn hex_byte_branchless(hi: u8, lo: u8) -> u8 {
 /// Supports: #RGB, #RRGGBB, #RGBA, #RRGGBBAA
 ///
 /// Returns `Rgba::BLACK` on invalid input (no error branch, just default).
-#[must_use] 
+#[must_use]
 pub fn parse_hex_color(s: &str) -> Rgba {
     let bytes = s.as_bytes();
 
@@ -164,7 +164,7 @@ pub fn parse_hex_color(s: &str) -> Rgba {
 /// hash(name) % `TABLE_SIZE` → direct index into color table.
 ///
 /// This is O(1) with zero branches (just arithmetic + table lookup).
-#[must_use] 
+#[must_use]
 pub fn parse_named_color(name: &str) -> Option<Rgba> {
     let lower = name.to_ascii_lowercase();
     let hash = color_name_hash(lower.as_bytes());
@@ -406,7 +406,7 @@ const NAMED_COLORS: &[(&str, Rgba)] = &[
 ];
 
 /// Parse any CSS color value (hex, named, `rgb()`, `rgba()`)
-#[must_use] 
+#[must_use]
 pub fn parse_css_color(value: &str) -> Rgba {
     let trimmed = value.trim();
 

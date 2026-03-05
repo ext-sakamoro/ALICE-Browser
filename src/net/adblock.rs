@@ -27,7 +27,7 @@ impl Default for BlockStats {
 }
 
 impl BlockStats {
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             page_ads: Arc::new(AtomicUsize::new(0)),
@@ -57,19 +57,19 @@ impl BlockStats {
         self.total_checked.fetch_add(1, Ordering::Relaxed);
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn page_blocked(&self) -> usize {
         self.page_ads.load(Ordering::Relaxed) + self.page_trackers.load(Ordering::Relaxed)
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn total_blocked(&self) -> usize {
         self.total_ads.load(Ordering::Relaxed) + self.total_trackers.load(Ordering::Relaxed)
     }
 }
 
 /// Classification of why a URL was blocked.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BlockReason {
     Ad,
     Tracker,
@@ -102,7 +102,7 @@ impl Default for AdBlockEngine {
 
 impl AdBlockEngine {
     /// Create a new engine with built-in rules.
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         let mut engine = Self {
             domain_blocks: Vec::new(),
@@ -169,7 +169,7 @@ impl AdBlockEngine {
     }
 
     /// Check if a URL should be blocked.
-    #[must_use] 
+    #[must_use]
     pub fn should_block(&self, url: &str) -> Option<BlockReason> {
         self.stats.record_check();
 
@@ -348,8 +348,8 @@ impl AdBlockEngine {
     }
 
     /// Number of loaded rules.
-    #[must_use] 
-    pub fn rule_count(&self) -> usize {
+    #[must_use]
+    pub const fn rule_count(&self) -> usize {
         self.domain_blocks.len() + self.substring_blocks.len() + self.exceptions.len()
     }
 }
@@ -441,9 +441,9 @@ mod tests {
     #[test]
     fn test_stats() {
         let engine = AdBlockEngine::new();
-        engine.should_block("https://doubleclick.net/ad.js");
-        engine.should_block("https://google-analytics.com/collect");
-        engine.should_block("https://example.com/page");
+        let _ = engine.should_block("https://doubleclick.net/ad.js");
+        let _ = engine.should_block("https://google-analytics.com/collect");
+        let _ = engine.should_block("https://example.com/page");
         assert!(engine.stats.total_blocked() >= 2);
         assert_eq!(engine.stats.total_checked.load(Ordering::Relaxed), 3);
     }
@@ -451,7 +451,7 @@ mod tests {
     #[test]
     fn test_easylist_parse() {
         let mut engine = AdBlockEngine::new();
-        let rules = r#"
+        let rules = r"
 ! EasyList comment
 [Adblock Plus]
 ||evil-ads.com^
@@ -459,7 +459,7 @@ mod tests {
 @@||allowed-ads.com^
 /some-ad-path/
 example.com##.ad-banner
-"#;
+";
         engine.load_rules(rules);
         assert!(engine
             .should_block("https://evil-ads.com/banner.js")

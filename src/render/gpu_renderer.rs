@@ -59,7 +59,7 @@ struct CachedPipeline {
 
 impl GpuRenderer {
     /// Try to initialise the GPU renderer. Returns None if no GPU is available.
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Option<Self> {
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             backends: wgpu::Backends::all(),

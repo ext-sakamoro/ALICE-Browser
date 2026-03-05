@@ -6,7 +6,7 @@ use std::collections::HashMap;
 const SKIP_CHILDREN: &[&str] = &["script", "style", "noscript", "svg"];
 
 /// Parse raw HTML string into an ALICE `DomTree`
-#[must_use] 
+#[must_use]
 pub fn parse_html(html: &str, url: &str) -> DomTree {
     let document = Html::parse_document(html);
 
@@ -67,7 +67,7 @@ mod tests {
 
     #[test]
     fn parse_simple_html() {
-        let html = r#"
+        let html = r"
         <html>
             <head><title>Test Page</title></head>
             <body>
@@ -75,7 +75,7 @@ mod tests {
                 <p>Content paragraph</p>
             </body>
         </html>
-        "#;
+        ";
 
         let tree = parse_html(html, "https://example.com");
         assert_eq!(tree.title, "Test Page");

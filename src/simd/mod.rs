@@ -34,7 +34,7 @@ const fn detect_simd_width() -> usize {
 
 /// Align a count up to the next `SIMD_WIDTH` boundary.
 #[inline(always)]
-#[must_use] 
+#[must_use]
 pub const fn align_up(n: usize) -> usize {
     (n + SIMD_WIDTH - 1) & !(SIMD_WIDTH - 1)
 }
@@ -48,22 +48,29 @@ pub struct F32x8 {
 
 impl F32x8 {
     #[inline(always)]
-    #[must_use] 
+    #[must_use]
     pub const fn splat(val: f32) -> Self {
         Self { v: [val; 8] }
     }
 
     #[inline(always)]
-    #[must_use] 
+    #[must_use]
     pub const fn zero() -> Self {
         Self::splat(0.0)
     }
 
     /// Load from aligned slice (must have >= 8 elements)
+    ///
+    /// # Panics
+    /// Panics if `slice` has fewer than 8 elements.
     #[inline(always)]
-    #[must_use] 
+    #[must_use]
     pub fn load(slice: &[f32]) -> Self {
-        assert!(slice.len() >= 8, "F32x8::load requires >= 8 elements, got {}", slice.len());
+        assert!(
+            slice.len() >= 8,
+            "F32x8::load requires >= 8 elements, got {}",
+            slice.len()
+        );
         #[cfg(target_arch = "x86_64")]
         // SAFETY: AVX2 is checked at runtime. slice has >= 8 f32 elements (assert above).
         // F32x8 is repr(C, align(32)) and __m256 is 256-bit, so the transmute is valid.
@@ -80,9 +87,16 @@ impl F32x8 {
     }
 
     /// Store to aligned slice
+    ///
+    /// # Panics
+    /// Panics if `slice` has fewer than 8 elements.
     #[inline(always)]
     pub fn store(self, slice: &mut [f32]) {
-        assert!(slice.len() >= 8, "F32x8::store requires >= 8 elements, got {}", slice.len());
+        assert!(
+            slice.len() >= 8,
+            "F32x8::store requires >= 8 elements, got {}",
+            slice.len()
+        );
         #[cfg(target_arch = "x86_64")]
         // SAFETY: AVX2 is checked at runtime. slice has >= 8 f32 elements (assert above).
         // F32x8 is repr(C, align(32)) matching __m256 layout; transmute is valid.
@@ -101,7 +115,7 @@ impl F32x8 {
     /// Element-wise addition
     #[allow(clippy::should_implement_trait)]
     #[inline(always)]
-    #[must_use] 
+    #[must_use]
     pub fn add(self, rhs: Self) -> Self {
         #[cfg(target_arch = "x86_64")]
         // SAFETY: AVX2 is checked at runtime. F32x8 is repr(C, align(32)) matching __m256 layout.
@@ -123,7 +137,7 @@ impl F32x8 {
     /// Element-wise multiplication
     #[allow(clippy::should_implement_trait)]
     #[inline(always)]
-    #[must_use] 
+    #[must_use]
     pub fn mul(self, rhs: Self) -> Self {
         #[cfg(target_arch = "x86_64")]
         // SAFETY: AVX2 is checked at runtime. F32x8 is repr(C, align(32)) matching __m256 layout.
@@ -144,7 +158,7 @@ impl F32x8 {
 
     /// Fused multiply-add: self * a + b (1 instruction on FMA-capable CPUs)
     #[inline(always)]
-    #[must_use] 
+    #[must_use]
     pub fn fma(self, a: Self, b: Self) -> Self {
         #[cfg(target_arch = "x86_64")]
         // SAFETY: FMA support is checked at runtime. F32x8 is repr(C, align(32)) matching
@@ -162,7 +176,7 @@ impl F32x8 {
 
     /// Element-wise maximum
     #[inline(always)]
-    #[must_use] 
+    #[must_use]
     pub fn max(self, rhs: Self) -> Self {
         #[cfg(target_arch = "x86_64")]
         // SAFETY: AVX2 is checked at runtime. F32x8 is repr(C, align(32)) matching __m256 layout.
@@ -183,7 +197,7 @@ impl F32x8 {
 
     /// Compare greater-than, returns mask (all 1s or all 0s per lane)
     #[inline(always)]
-    #[must_use] 
+    #[must_use]
     pub fn cmp_gt(self, rhs: Self) -> MaskF32x8 {
         #[cfg(target_arch = "x86_64")]
         // SAFETY: AVX2 is checked at runtime. F32x8 and MaskF32x8 are repr(C, align(32)) matching
@@ -219,7 +233,7 @@ impl MaskF32x8 {
     ///
     /// mask.blend(a, b) ≡ (mask & a) | (!mask & b)
     #[inline(always)]
-    #[must_use] 
+    #[must_use]
     pub fn blend(self, a: F32x8, b: F32x8) -> F32x8 {
         #[cfg(target_arch = "x86_64")]
         // SAFETY: AVX2 is checked at runtime. MaskF32x8 and F32x8 are repr(C, align(32)) matching
@@ -248,7 +262,7 @@ impl MaskF32x8 {
 
     /// Bitwise AND of two masks
     #[inline(always)]
-    #[must_use] 
+    #[must_use]
     pub fn and(self, rhs: Self) -> Self {
         let mut bits = [0u32; 8];
         for (out_bit, (a, b)) in bits.iter_mut().zip(self.bits.iter().zip(rhs.bits.iter())) {
@@ -259,7 +273,7 @@ impl MaskF32x8 {
 
     /// Bitwise OR of two masks
     #[inline(always)]
-    #[must_use] 
+    #[must_use]
     pub fn or(self, rhs: Self) -> Self {
         let mut bits = [0u32; 8];
         for (out_bit, (a, b)) in bits.iter_mut().zip(self.bits.iter().zip(rhs.bits.iter())) {
@@ -271,7 +285,7 @@ impl MaskF32x8 {
     /// Invert mask
     #[allow(clippy::should_implement_trait)]
     #[inline(always)]
-    #[must_use] 
+    #[must_use]
     pub fn not(self) -> Self {
         let mut bits = [0u32; 8];
         for (out_bit, b) in bits.iter_mut().zip(self.bits.iter()) {
@@ -282,14 +296,14 @@ impl MaskF32x8 {
 
     /// True if any lane is set
     #[inline(always)]
-    #[must_use] 
+    #[must_use]
     pub fn any(self) -> bool {
         self.bits.iter().any(|&b| b != 0)
     }
 
     /// Count set lanes
     #[inline(always)]
-    #[must_use] 
+    #[must_use]
     pub fn count(self) -> usize {
         self.bits.iter().filter(|&&b| b != 0).count()
     }
@@ -304,30 +318,46 @@ pub struct I32x8 {
 
 impl I32x8 {
     #[inline(always)]
-    #[must_use] 
+    #[must_use]
     pub const fn splat(val: i32) -> Self {
         Self { v: [val; 8] }
     }
 
+    /// Load from aligned slice (must have >= 8 elements)
+    ///
+    /// # Panics
+    /// Panics if `slice` has fewer than 8 elements.
     #[inline(always)]
-    #[must_use] 
+    #[must_use]
     pub fn load(slice: &[i32]) -> Self {
-        assert!(slice.len() >= 8, "I32x8::load requires >= 8 elements, got {}", slice.len());
+        assert!(
+            slice.len() >= 8,
+            "I32x8::load requires >= 8 elements, got {}",
+            slice.len()
+        );
         let mut v = [0i32; 8];
         v.copy_from_slice(&slice[..8]);
         Self { v }
     }
 
+    /// Store to aligned slice
+    ///
+    /// # Panics
+    /// Panics if `slice` has fewer than 8 elements.
     #[inline(always)]
     pub fn store(self, slice: &mut [i32]) {
-        assert!(slice.len() >= 8, "I32x8::store requires >= 8 elements, got {}", slice.len());
+        assert!(
+            slice.len() >= 8,
+            "I32x8::store requires >= 8 elements, got {}",
+            slice.len()
+        );
         slice[..8].copy_from_slice(&self.v);
     }
 
     /// Element-wise addition
     #[allow(clippy::should_implement_trait)]
     #[inline(always)]
-    #[must_use] 
+    #[must_use]
     pub fn add(self, rhs: Self) -> Self {
         let mut out = [0i32; 8];
         for (out_elem, (a, b)) in out.iter_mut().zip(self.v.iter().zip(rhs.v.iter())) {
@@ -338,7 +368,7 @@ impl I32x8 {
 
     /// Compare equal
     #[inline(always)]
-    #[must_use] 
+    #[must_use]
     pub fn cmp_eq(self, rhs: Self) -> MaskF32x8 {
         let mut bits = [0u32; 8];
         for (bit, (a, b)) in bits.iter_mut().zip(self.v.iter().zip(rhs.v.iter())) {
@@ -349,6 +379,7 @@ impl I32x8 {
 }
 
 #[cfg(test)]
+#[allow(clippy::float_cmp)]
 mod tests {
     use super::*;
 
@@ -367,7 +398,16 @@ mod tests {
         let a = F32x8::splat(10.0);
         let b = F32x8::splat(20.0);
         let mask = MaskF32x8 {
-            bits: [0xFFFFFFFF, 0, 0xFFFFFFFF, 0, 0xFFFFFFFF, 0, 0xFFFFFFFF, 0],
+            bits: [
+                0xFFFF_FFFF,
+                0,
+                0xFFFF_FFFF,
+                0,
+                0xFFFF_FFFF,
+                0,
+                0xFFFF_FFFF,
+                0,
+            ],
         };
         let result = mask.blend(a, b);
         assert!((result.v[0] - 10.0).abs() < 1e-6);

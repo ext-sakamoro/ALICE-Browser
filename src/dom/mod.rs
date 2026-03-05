@@ -30,18 +30,18 @@ pub enum Classification {
 
 impl Classification {
     /// Convert from output neuron index to Classification
-    #[must_use] 
-    pub fn from_index(idx: usize) -> Self {
+    #[must_use]
+    pub const fn from_index(idx: usize) -> Self {
         match idx {
-            0 => Classification::Content,
-            1 => Classification::Navigation,
-            2 => Classification::Advertisement,
-            3 => Classification::Tracker,
-            4 => Classification::Decoration,
-            5 => Classification::Interactive,
-            6 => Classification::Media,
-            7 => Classification::Structural,
-            _ => Classification::Unknown,
+            0 => Self::Content,
+            1 => Self::Navigation,
+            2 => Self::Advertisement,
+            3 => Self::Tracker,
+            4 => Self::Decoration,
+            5 => Self::Interactive,
+            6 => Self::Media,
+            7 => Self::Structural,
+            _ => Self::Unknown,
         }
     }
 }
@@ -60,14 +60,14 @@ pub struct DomNode {
     pub tag: String,
     pub attributes: HashMap<String, String>,
     pub text: String,
-    pub children: Vec<DomNode>,
+    pub children: Vec<Self>,
     pub node_type: NodeType,
     pub classification: Classification,
 }
 
 impl DomNode {
-    #[must_use] 
-    pub fn document(children: Vec<DomNode>) -> Self {
+    #[must_use]
+    pub fn document(children: Vec<Self>) -> Self {
         Self {
             tag: "#document".into(),
             attributes: HashMap::new(),
@@ -81,7 +81,7 @@ impl DomNode {
     pub fn element(
         tag: impl Into<String>,
         attrs: HashMap<String, String>,
-        children: Vec<DomNode>,
+        children: Vec<Self>,
     ) -> Self {
         Self {
             tag: tag.into(),
@@ -105,13 +105,13 @@ impl DomNode {
     }
 
     /// Recursively count all nodes in this subtree
-    #[must_use] 
+    #[must_use]
     pub fn node_count(&self) -> usize {
-        1 + self.children.iter().map(DomNode::node_count).sum::<usize>()
+        1 + self.children.iter().map(Self::node_count).sum::<usize>()
     }
 
     /// Collect all text content recursively
-    #[must_use] 
+    #[must_use]
     pub fn collect_text(&self) -> String {
         let mut buf = String::new();
         self.collect_text_inner(&mut buf);
@@ -131,7 +131,7 @@ impl DomNode {
     }
 
     /// Text-to-markup density (higher = more content-rich)
-    #[must_use] 
+    #[must_use]
     pub fn text_density(&self) -> f32 {
         let text_len = self.collect_text().len() as f32;
         let total_nodes = self.node_count() as f32;
@@ -143,7 +143,7 @@ impl DomNode {
     }
 
     /// Link density (ratio of link text to total text)
-    #[must_use] 
+    #[must_use]
     pub fn link_density(&self) -> f32 {
         let total_text = self.collect_text().len() as f32;
         if total_text == 0.0 {
@@ -158,13 +158,13 @@ impl DomNode {
         link_text as f32 / total_text
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn attr(&self, name: &str) -> Option<&str> {
         self.attributes.get(name).map(std::string::String::as_str)
     }
 
     /// Whether this node should be rendered (not an ad/tracker)
-    #[must_use] 
+    #[must_use]
     pub fn is_visible(&self) -> bool {
         self.classification != Classification::Advertisement
             && self.classification != Classification::Tracker
@@ -181,7 +181,7 @@ pub struct DomTree {
 
 impl DomTree {
     /// Count nodes by classification
-    #[must_use] 
+    #[must_use]
     pub fn classification_stats(&self) -> HashMap<Classification, usize> {
         let mut stats = HashMap::new();
         count_classifications(&self.root, &mut stats);
@@ -197,6 +197,7 @@ fn count_classifications(node: &DomNode, stats: &mut HashMap<Classification, usi
 }
 
 #[cfg(test)]
+#[allow(clippy::float_cmp)]
 mod tests {
     use super::*;
 

@@ -70,7 +70,7 @@ pub struct SdfScene {
 }
 
 /// Convert a layout tree to an SDF scene description
-#[must_use] 
+#[must_use]
 pub fn layout_to_sdf(root: &LayoutNode, scale: f32) -> SdfScene {
     let mut primitives = Vec::new();
     emit_sdf_primitives(root, &mut primitives, scale, 0);
@@ -214,7 +214,7 @@ fn collect_child_text(node: &LayoutNode) -> String {
 // ── Paint elements for egui Painter-based SDF rendering ──
 
 /// Paint element kind for interactive SDF UI.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PaintKind {
     /// Card container with shadow (section, article)
     Card,
@@ -249,7 +249,7 @@ pub struct PaintElement {
 }
 
 /// Convert a layout tree into paint elements for egui SDF rendering.
-#[must_use] 
+#[must_use]
 pub fn layout_to_paint(root: &LayoutNode) -> Vec<PaintElement> {
     let mut elements = Vec::new();
     let mut id = 0;

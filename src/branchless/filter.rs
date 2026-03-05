@@ -36,15 +36,15 @@ pub struct BatchFilterResult {
 impl BatchFilterResult {
     /// Count nodes that will be pruned
     #[inline]
-    #[must_use] 
-    pub fn pruned_count(&self) -> u32 {
+    #[must_use]
+    pub const fn pruned_count(&self) -> u32 {
         self.prune_mask.count_ones()
     }
 
     /// Count content nodes
     #[inline]
-    #[must_use] 
-    pub fn content_count(&self) -> u32 {
+    #[must_use]
+    pub const fn content_count(&self) -> u32 {
         self.content_mask.count_ones()
     }
 }
@@ -57,7 +57,7 @@ impl BatchFilterResult {
 /// The entire classification is done with zero conditional branches:
 /// only bitwise AND, OR, NOT operations on masks.
 #[allow(clippy::too_many_arguments)]
-#[must_use] 
+#[must_use]
 pub fn classify_batch_branchless(
     is_script: &[f32],
     is_style: &[f32],
@@ -152,8 +152,8 @@ pub fn apply_batch_result(result: &BatchFilterResult, classifications: &mut [i32
 }
 
 /// Count filter statistics from a batch result
-#[must_use] 
-pub fn batch_stats(result: &BatchFilterResult) -> FilterStatsAccum {
+#[must_use]
+pub const fn batch_stats(result: &BatchFilterResult) -> FilterStatsAccum {
     FilterStatsAccum {
         total: result.count,
         content: result.content_mask.count_ones() as usize,
@@ -176,7 +176,7 @@ pub struct FilterStatsAccum {
 }
 
 impl FilterStatsAccum {
-    pub fn merge(&mut self, other: &FilterStatsAccum) {
+    pub const fn merge(&mut self, other: &Self) {
         self.total += other.total;
         self.content += other.content;
         self.ads += other.ads;

@@ -25,7 +25,7 @@ pub struct LayoutConstants {
 
 impl LayoutConstants {
     #[inline]
-    #[must_use] 
+    #[must_use]
     pub fn new(viewport_width: f32) -> Self {
         Self {
             inv_char_width_factor: 1.0 / 0.6,
@@ -45,7 +45,7 @@ impl LayoutConstants {
 /// Instead of match tag { "h1" => 32.0, "h2" => 24.0, ... }
 /// we encode `tag→font_size` as SIMD comparison + blend.
 #[inline]
-#[must_use] 
+#[must_use]
 pub fn batch_font_sizes(tag_types: &[i32], parent_size: f32) -> [f32; 8] {
     let mut sizes = [parent_size; 8];
 
@@ -96,14 +96,14 @@ fn font_size_lut(tag_type: i32, parent: f32) -> f32 {
     // lut_val + (parent - lut_val) * (lut_val == 0.0) as i32 as f32
     let is_zero = (lut_val == 0.0) as u32 as f32; // 1.0 if zero, 0.0 if nonzero
                                                   // FMA: lut_val + is_zero * (parent - lut_val) = lut_val * (1 - is_zero) + parent * is_zero
-    lut_val * (1.0 - is_zero) + parent * is_zero
+    lut_val.mul_add(1.0 - is_zero, parent * is_zero)
 }
 
 /// Batch-compute margin tops for 8 nodes.
 ///
 /// Uses the same LUT approach as font sizes.
 #[inline]
-#[must_use] 
+#[must_use]
 pub fn batch_margin_tops(tag_types: &[i32]) -> F32x8 {
     let mut v = [0.0f32; 8];
     for i in 0..8 {
@@ -114,7 +114,7 @@ pub fn batch_margin_tops(tag_types: &[i32]) -> F32x8 {
 
 /// Batch-compute margin bottoms for 8 nodes.
 #[inline]
-#[must_use] 
+#[must_use]
 pub fn batch_margin_bottoms(tag_types: &[i32]) -> F32x8 {
     let mut v = [0.0f32; 8];
     for i in 0..8 {
@@ -125,7 +125,7 @@ pub fn batch_margin_bottoms(tag_types: &[i32]) -> F32x8 {
 
 /// Batch-compute paddings for 8 nodes.
 #[inline]
-#[must_use] 
+#[must_use]
 pub fn batch_paddings(tag_types: &[i32]) -> F32x8 {
     let mut v = [0.0f32; 8];
     for i in 0..8 {
@@ -180,7 +180,7 @@ fn padding_lut(tag_type: i32) -> f32 {
 /// So: lines = `text_len` * `inv_cpl` = `text_len` * `font_size` * 0.6 * `inv_viewport`
 /// No division at all!
 #[inline]
-#[must_use] 
+#[must_use]
 pub fn batch_text_heights(text_lens: &[f32; 8], font_sizes: &[f32; 8], inv_viewport: f32) -> F32x8 {
     let inv_vp = F32x8::splat(inv_viewport);
     let char_factor = F32x8::splat(0.6);
@@ -212,7 +212,7 @@ pub fn batch_text_heights(text_lens: &[f32; 8], font_sizes: &[f32; 8], inv_viewp
 /// This processes sequential sibling nodes in batches of 8.
 /// For nested layouts, the tree structure still requires sequential
 /// `cursor_y` accumulation, but within each level, siblings can be batched.
-#[must_use] 
+#[must_use]
 pub fn compute_layout_simd(nodes: &[FlatNode], viewport_width: f32) -> Vec<ComputedBox> {
     let consts = LayoutConstants::new(viewport_width);
     let count = nodes.len();
@@ -269,7 +269,7 @@ pub fn compute_layout_simd(nodes: &[FlatNode], viewport_width: f32) -> Vec<Compu
             results.push(ComputedBox {
                 x: batch_nodes[i].depth as f32 * pad,
                 y: start_y,
-                width: viewport_width - batch_nodes[i].depth as f32 * pad * 2.0,
+                width: (batch_nodes[i].depth as f32 * pad).mul_add(-2.0, viewport_width),
                 height,
                 font_size: fs,
             });
@@ -309,7 +309,7 @@ pub fn compute_layout_simd(nodes: &[FlatNode], viewport_width: f32) -> Vec<Compu
         results.push(ComputedBox {
             x: node.depth as f32 * pad,
             y: start_y,
-            width: viewport_width - node.depth as f32 * pad * 2.0,
+            width: (node.depth as f32 * pad).mul_add(-2.0, viewport_width),
             height,
             font_size: fs,
         });

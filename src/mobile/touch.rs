@@ -47,7 +47,7 @@ pub enum Gesture {
     None,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SwipeDirection {
     Left,
     Right,
@@ -86,7 +86,7 @@ pub struct GestureRecognizer {
 }
 
 impl GestureRecognizer {
-    #[must_use] 
+    #[must_use]
     pub fn new(screen_width: f32, screen_height: f32) -> Self {
         Self {
             touches: Vec::with_capacity(4),
@@ -104,7 +104,7 @@ impl GestureRecognizer {
         }
     }
 
-    pub fn set_screen_size(&mut self, width: f32, height: f32) {
+    pub const fn set_screen_size(&mut self, width: f32, height: f32) {
         self.screen_width = width;
         self.screen_height = height;
     }
@@ -133,7 +133,7 @@ impl GestureRecognizer {
             let dy = y - touch.y;
 
             // Track total drag distance for tap vs scroll disambiguation
-            self.drag_distance += (dx * dx + dy * dy).sqrt(); // Using actual sqrt here is fine (rare path)
+            self.drag_distance += dx.hypot(dy); // Using actual sqrt here is fine (rare path)
 
             touch.x = x;
             touch.y = y;
@@ -142,10 +142,10 @@ impl GestureRecognizer {
             if self.touches.len() == 2 {
                 let t0 = self.touches[0];
                 let t1 = self.touches[1];
-                let current_dist = ((t0.x - t1.x).powi(2) + (t0.y - t1.y).powi(2)).sqrt();
+                let current_dist = (t0.x - t1.x).hypot(t0.y - t1.y);
 
                 if let Some(start) = &self.start_point {
-                    let start_dist = ((start.x - t1.x).powi(2) + (start.y - t1.y).powi(2)).sqrt();
+                    let start_dist = (start.x - t1.x).hypot(start.y - t1.y);
                     if start_dist > 1.0 {
                         let scale = current_dist / start_dist;
                         let cx = (t0.x + t1.x) * 0.5;
@@ -180,7 +180,7 @@ impl GestureRecognizer {
         let duration = start.time.elapsed();
         let dx = x - start.x;
         let dy = y - start.y;
-        let dist = (dx * dx + dy * dy).sqrt();
+        let dist = dx.hypot(dy);
 
         // Long press detection
         if duration.as_millis() as u64 >= self.long_press_ms && dist < self.swipe_threshold {
@@ -220,7 +220,7 @@ impl GestureRecognizer {
             // Check for double-tap
             if let (Some(last_time), Some(last_pos)) = (self.last_tap_time, self.last_tap_pos) {
                 let time_diff = last_time.elapsed().as_millis() as u64;
-                let pos_dist = ((x - last_pos.0).powi(2) + (y - last_pos.1).powi(2)).sqrt();
+                let pos_dist = (x - last_pos.0).hypot(y - last_pos.1);
 
                 if time_diff < self.double_tap_ms && pos_dist < 50.0 {
                     self.last_tap_time = None;
@@ -238,7 +238,7 @@ impl GestureRecognizer {
     }
 
     /// Check for long press (called periodically from UI update loop)
-    #[must_use] 
+    #[must_use]
     pub fn check_long_press(&self) -> Option<(f32, f32)> {
         if self.touches.len() == 1 && !self.is_dragging {
             let touch = &self.touches[0];
@@ -253,8 +253,6 @@ impl GestureRecognizer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::thread::sleep;
-    use std::time::Duration;
 
     #[test]
     fn test_tap_gesture() {
@@ -266,7 +264,7 @@ mod tests {
                 assert!((x - 201.0).abs() < 1.0);
                 assert!((y - 401.0).abs() < 1.0);
             }
-            _ => panic!("Expected Tap gesture, got {:?}", gesture),
+            _ => panic!("Expected Tap gesture, got {gesture:?}"),
         }
     }
 
@@ -279,7 +277,7 @@ mod tests {
             Gesture::Swipe { direction, .. } => {
                 assert_eq!(direction, SwipeDirection::Right);
             }
-            _ => panic!("Expected Swipe gesture, got {:?}", gesture),
+            _ => panic!("Expected Swipe gesture, got {gesture:?}"),
         }
     }
 }

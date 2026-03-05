@@ -42,16 +42,24 @@ impl BrowserApp {
         let elements = &self.paint_elements;
         let textures = &self.image_textures;
 
-        if let Some(ref elems) = elements {
-            paint_state.paint(ui, ctx, elems, dark_mode, textures)
-        } else {
-            None
-        }
+        elements
+            .as_ref()
+            .and_then(|elems| paint_state.paint(ui, ctx, elems, dark_mode, textures))
     }
 
     // ── 3-D / OZ raymarched view ─────────────────────────────────────────────
 
     #[cfg(feature = "sdf-render")]
+    #[allow(
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss,
+        clippy::cast_precision_loss,
+        clippy::too_many_lines,
+        clippy::match_same_arms,
+        clippy::option_if_let_else,
+        clippy::or_fun_call,
+        clippy::tuple_array_conversions
+    )]
     pub fn draw_sdf_content(&mut self, ui: &mut egui::Ui, ctx: &egui::Context) {
         use alice_browser::render::sdf_renderer::{auto_camera, render_sdf_interactive};
         use std::sync::mpsc;
@@ -125,8 +133,10 @@ impl BrowserApp {
             if response.dragged() {
                 let delta = response.drag_delta();
                 self.cam_params.azimuth -= delta.x * 0.005;
-                self.cam_params.elevation =
-                    (self.cam_params.elevation + delta.y * 0.005).clamp(-0.8, 0.8);
+                self.cam_params.elevation = delta
+                    .y
+                    .mul_add(0.005, self.cam_params.elevation)
+                    .clamp(-0.8, 0.8);
             }
 
             // OZ: click to grab nearest text
@@ -184,7 +194,7 @@ impl BrowserApp {
                                 });
                                 let (tx, rx) = mpsc::channel();
                                 self.oz_preview_rx = Some(rx);
-                                let url_for_thread = fetch_url_str.clone();
+                                let url_for_thread = fetch_url_str;
                                 std::thread::spawn(move || {
                                     let preview = fetch_link_preview(&url_for_thread);
                                     let _ = tx.send(preview);
@@ -218,7 +228,9 @@ impl BrowserApp {
             if response.dragged() {
                 let delta = response.drag_delta();
                 self.cam_params.azimuth += delta.x * 0.008;
-                self.cam_params.elevation = (self.cam_params.elevation - delta.y * 0.008)
+                self.cam_params.elevation = delta
+                    .y
+                    .mul_add(-0.008, self.cam_params.elevation)
                     .clamp(0.05, std::f32::consts::FRAC_PI_2 - 0.05);
                 self.cam_dirty = true;
                 self.cam_dragging = true;
@@ -230,7 +242,7 @@ impl BrowserApp {
             if response.hovered() {
                 let scroll = ui.input(|i| i.raw_scroll_delta.y);
                 if scroll.abs() > 0.1 {
-                    self.cam_params.distance *= 1.0 - scroll * 0.003;
+                    self.cam_params.distance *= scroll.mul_add(-0.003, 1.0);
                     self.cam_params.distance = self.cam_params.distance.clamp(0.2, 100.0);
                     self.cam_dirty = true;
                 }
@@ -316,13 +328,13 @@ impl BrowserApp {
                     let wz = world[2];
 
                     // Camera rotation: azimuth (Y-axis) then elevation (X-axis)
-                    let rx1 = wx * cos_az + wz * sin_az;
+                    let rx1 = wx.mul_add(cos_az, wz * sin_az);
                     let ry1 = wy;
-                    let rz1 = -wx * sin_az + wz * cos_az;
+                    let rz1 = (-wx).mul_add(sin_az, wz * cos_az);
 
                     let rx = rx1;
-                    let ry = ry1 * cos_el - rz1 * sin_el;
-                    let rz = ry1 * sin_el + rz1 * cos_el;
+                    let ry = ry1.mul_add(cos_el, -(rz1 * sin_el));
+                    let rz = ry1.mul_add(sin_el, rz1 * cos_el);
 
                     // Skip particles behind camera
                     if rz < 1.0 {
@@ -337,14 +349,13 @@ impl BrowserApp {
                         continue;
                     }
 
-                    let sx = rect.center().x + ndc_x * rect.width() * 0.5;
-                    let sy = rect.center().y + ndc_y * rect.height() * 0.5;
+                    let sx = (ndc_x * rect.width()).mul_add(0.5, rect.center().x);
+                    let sy = (ndc_y * rect.height()).mul_add(0.5, rect.center().y);
 
                     let cat_color = stream
                         .categories
                         .get(p.category_index)
-                        .map(|c| c.color)
-                        .unwrap_or([0.3, 0.3, 0.3, 1.0]);
+                        .map_or([0.3, 0.3, 0.3, 1.0], |c| c.color);
 
                     let alpha = StreamState::particle_opacity(p);
                     if alpha < 0.01 {
@@ -354,7 +365,8 @@ impl BrowserApp {
                     // Font size: layer-based + importance + perspective
                     let layer_scale = StreamState::layer_font_scale(p.layer);
                     let depth_scale = (12.0 / rz).clamp(0.5, 2.0);
-                    let base_font: f32 = (13.0 + p.importance * 14.0) * layer_scale * depth_scale;
+                    let base_font: f32 =
+                        p.importance.mul_add(14.0, 13.0) * layer_scale * depth_scale;
                     let grabbed_scale: f32 = if p.grabbed { 1.4 } else { 1.0 };
                     let font_size = (base_font * grabbed_scale).clamp(8.0_f32, 48.0);
 
@@ -397,27 +409,22 @@ impl BrowserApp {
                     let holo_alpha = self.oz_hologram_alpha;
                     if holo_alpha > 0.01 {
                         let has_href = info.meta.href.is_some();
-                        let has_preview = self
-                            .oz_preview
-                            .as_ref()
-                            .map(|p| p.status != LinkPreviewStatus::Loading || !p.title.is_empty())
-                            .unwrap_or(false);
+                        let has_preview = self.oz_preview.as_ref().is_some_and(|p| {
+                            p.status != LinkPreviewStatus::Loading || !p.title.is_empty()
+                        });
                         let is_loading = self
                             .oz_preview
                             .as_ref()
-                            .map(|p| p.status == LinkPreviewStatus::Loading)
-                            .unwrap_or(false);
+                            .is_some_and(|p| p.status == LinkPreviewStatus::Loading);
 
                         let has_desc = self
                             .oz_preview
                             .as_ref()
-                            .map(|p| !p.description.is_empty())
-                            .unwrap_or(false);
+                            .is_some_and(|p| !p.description.is_empty());
                         let preview_lines = if has_preview {
                             self.oz_preview
                                 .as_ref()
-                                .map(|p| p.texts.len().min(12))
-                                .unwrap_or(0)
+                                .map_or(0, |p| p.texts.len().min(12))
                         } else {
                             0
                         };
@@ -430,7 +437,7 @@ impl BrowserApp {
                         };
                         let desc_h = if has_desc { 36.0_f32 } else { 0.0 };
                         let preview_h = if has_preview || is_loading {
-                            24.0 + desc_h + preview_lines as f32 * 17.0
+                            (preview_lines as f32).mul_add(17.0, 24.0 + desc_h)
                         } else {
                             0.0
                         };
@@ -454,8 +461,7 @@ impl BrowserApp {
                         let cat_color = stream
                             .categories
                             .get(info.particle.category_index)
-                            .map(|c| c.color)
-                            .unwrap_or([0.3, 0.3, 0.3, 1.0]);
+                            .map_or([0.3, 0.3, 0.3, 1.0], |c| c.color);
                         let cr = (cat_color[0] * 255.0) as u8;
                         let cg = (cat_color[1] * 255.0) as u8;
                         let cb = (cat_color[2] * 255.0) as u8;
@@ -589,11 +595,11 @@ impl BrowserApp {
                             "" => "TEXT",
                             other => other,
                         };
-                        let tag_x =
-                            left + 14.0 + info.category_name.chars().count().min(16) as f32 * 7.5;
+                        let tag_x = (info.category_name.chars().count().min(16) as f32)
+                            .mul_add(7.5, left + 14.0);
                         let tag_bg = egui::Rect::from_min_size(
                             egui::pos2(tag_x, y - 1.0),
-                            egui::vec2(tag_text.len() as f32 * 7.0 + 10.0, 16.0),
+                            egui::vec2((tag_text.len() as f32).mul_add(7.0, 10.0), 16.0),
                         );
                         painter.rect_filled(
                             tag_bg,
@@ -623,7 +629,7 @@ impl BrowserApp {
                         let max_chars = ((panel_w - 40.0) / 8.5) as usize;
                         let display_text = if info.meta.full_text.chars().count() > max_chars {
                             let t: String = info.meta.full_text.chars().take(max_chars).collect();
-                            format!("{}...", t)
+                            format!("{t}...")
                         } else {
                             info.meta.full_text.clone()
                         };
@@ -660,7 +666,7 @@ impl BrowserApp {
                             painter.text(
                                 egui::pos2(left, y),
                                 egui::Align2::LEFT_TOP,
-                                format!("\u{2197} {}", link_display),
+                                format!("\u{2197} {link_display}"),
                                 egui::FontId::proportional(11.0),
                                 egui::Color32::from_rgba_unmultiplied(0, 100, 200, text_alpha),
                             );
@@ -686,7 +692,7 @@ impl BrowserApp {
                                 painter.text(
                                     egui::pos2(left, y),
                                     egui::Align2::LEFT_TOP,
-                                    format!("Error: {}", e),
+                                    format!("Error: {e}"),
                                     egui::FontId::proportional(11.0),
                                     egui::Color32::from_rgba_unmultiplied(200, 60, 60, text_alpha),
                                 );
@@ -828,7 +834,7 @@ impl BrowserApp {
         if self.render_mode == RenderMode::Sdf2D && self.page.is_some() {
             let clicked = self.draw_sdf_paint(ui, ctx);
             if let Some(href) = clicked {
-                let base = self.page.as_ref().map(|p| p.dom.url.as_str()).unwrap_or("");
+                let base = self.page.as_ref().map_or("", |p| p.dom.url.as_str());
                 self.url_input = resolve_url(base, &href);
                 self.navigate(ctx);
             }
@@ -889,6 +895,7 @@ impl BrowserApp {
     // ── Stats side panel ─────────────────────────────────────────────────────
 
     /// Render the right-side statistics panel.
+    #[allow(clippy::cast_precision_loss, clippy::too_many_lines)]
     pub fn draw_stats_panel(&self, ui: &mut egui::Ui) {
         if let Some(ref page) = self.page {
             let stats = &page.filter_stats;
@@ -919,7 +926,7 @@ impl BrowserApp {
 
             if stats.total_nodes > 0 {
                 let pct = (stats.removed_nodes as f32 / stats.total_nodes as f32) * 100.0;
-                ui.label(format!("Reduction: {:.1}%", pct));
+                ui.label(format!("Reduction: {pct:.1}%"));
             }
 
             ui.separator();
@@ -957,7 +964,7 @@ impl BrowserApp {
                     if self.sdf_texture.is_some() {
                         ui.colored_label(
                             egui::Color32::from_rgb(0, 180, 0),
-                            format!("Raymarched: {}", res),
+                            format!("Raymarched: {res}"),
                         );
                     }
                     ui.label(format!("Cam dist: {:.2}", self.cam_params.distance));

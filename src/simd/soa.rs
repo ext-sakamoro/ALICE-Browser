@@ -57,7 +57,7 @@ pub struct NodeFeaturesSoA {
 
 impl NodeFeaturesSoA {
     /// Create empty `SoA` with capacity for `cap` nodes (aligned up)
-    #[must_use] 
+    #[must_use]
     pub fn with_capacity(cap: usize) -> Self {
         let aligned_cap = align_up(cap);
         Self {
@@ -127,14 +127,14 @@ impl NodeFeaturesSoA {
 
     /// Number of SIMD batches needed
     #[inline(always)]
-    #[must_use] 
-    pub fn batch_count(&self) -> usize {
+    #[must_use]
+    pub const fn batch_count(&self) -> usize {
         align_up(self.count) / SIMD_WIDTH
     }
 
     /// Load a batch of 8 f32 values from a feature array at the given batch index
     #[inline(always)]
-    #[must_use] 
+    #[must_use]
     pub fn load_f32_batch(&self, data: &AlignedVec<f32>, batch: usize) -> F32x8 {
         let offset = batch * 8;
         F32x8::load(&data.as_slice()[offset..])
@@ -142,7 +142,7 @@ impl NodeFeaturesSoA {
 
     /// Load a batch of 8 i32 values
     #[inline(always)]
-    #[must_use] 
+    #[must_use]
     pub fn load_i32_batch(&self, data: &AlignedVec<i32>, batch: usize) -> I32x8 {
         let offset = batch * 8;
         I32x8::load(&data.as_slice()[offset..])
@@ -187,7 +187,7 @@ pub struct LayoutBoxesSoA {
 }
 
 impl LayoutBoxesSoA {
-    #[must_use] 
+    #[must_use]
     pub fn with_capacity(cap: usize) -> Self {
         let aligned_cap = align_up(cap);
         Self {
@@ -257,7 +257,7 @@ pub struct AlignedVec<T: Copy + Default> {
 }
 
 impl<T: Copy + Default> AlignedVec<T> {
-    #[must_use] 
+    #[must_use]
     pub fn with_capacity(cap: usize) -> Self {
         Self {
             data: Vec::with_capacity(cap),
@@ -270,19 +270,19 @@ impl<T: Copy + Default> AlignedVec<T> {
     }
 
     #[inline(always)]
-    #[must_use] 
-    pub fn len(&self) -> usize {
+    #[must_use]
+    pub const fn len(&self) -> usize {
         self.data.len()
     }
 
     #[inline(always)]
-    #[must_use] 
-    pub fn is_empty(&self) -> bool {
+    #[must_use]
+    pub const fn is_empty(&self) -> bool {
         self.data.is_empty()
     }
 
     #[inline(always)]
-    #[must_use] 
+    #[must_use]
     pub fn as_slice(&self) -> &[T] {
         &self.data
     }
@@ -301,7 +301,7 @@ impl<T: Copy + Default> Default for AlignedVec<T> {
 
 /// Tag name → integer encoding for SIMD comparison
 #[inline]
-#[must_use] 
+#[must_use]
 pub fn encode_tag(tag: &str) -> i32 {
     match tag {
         "div" => 0,
@@ -326,7 +326,7 @@ pub fn encode_tag(tag: &str) -> i32 {
 }
 
 /// Convert `DomNode` tree into `SoA` representation (flattening)
-#[must_use] 
+#[must_use]
 pub fn dom_to_soa(node: &crate::dom::DomNode) -> NodeFeaturesSoA {
     let node_count = node.node_count();
     let mut soa = NodeFeaturesSoA::with_capacity(node_count);

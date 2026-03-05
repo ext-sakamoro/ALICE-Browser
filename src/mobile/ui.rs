@@ -56,13 +56,13 @@ pub struct MobileBlockStats {
 }
 
 impl MobileBlockStats {
-    #[must_use] 
-    pub fn page_total(&self) -> usize {
+    #[must_use]
+    pub const fn page_total(&self) -> usize {
         self.page_ads_blocked + self.page_trackers_blocked
     }
 
-    #[must_use] 
-    pub fn lifetime_total(&self) -> usize {
+    #[must_use]
+    pub const fn lifetime_total(&self) -> usize {
         self.total_ads_blocked + self.total_trackers_blocked
     }
 }
@@ -88,7 +88,7 @@ pub enum MobileAction {
 }
 
 impl MobileUI {
-    #[must_use] 
+    #[must_use]
     pub fn new(screen_width: f32, screen_height: f32) -> Self {
         Self {
             bottom_bar_visible: true,
@@ -421,7 +421,7 @@ pub struct ContentArea {
 
 impl MobileUI {
     /// Calculate the content area rect based on UI visibility state
-    #[must_use] 
+    #[must_use]
     pub fn content_area(&self) -> ContentArea {
         let status_h = if self.status_bar_visible { 28.0 } else { 0.0 };
         let bottom_h = if self.bottom_bar_visible { 48.0 } else { 0.0 };

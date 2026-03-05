@@ -45,7 +45,7 @@ impl Default for SimdAdBlockEngine {
 }
 
 impl SimdAdBlockEngine {
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         let mut engine = Self {
             domain_bloom: [0u8; BLOOM_SIZE_BYTES],
@@ -298,21 +298,21 @@ impl SimdAdBlockEngine {
         }
     }
 
-    #[must_use] 
-    pub fn rule_count(&self) -> usize {
+    #[must_use]
+    pub const fn rule_count(&self) -> usize {
         self.domain_blocks.len()
             + self.tracker_domains.len()
             + self.substring_blocks.len()
             + self.exceptions.len()
     }
 
-    #[must_use] 
-    pub fn total_blocked(&self) -> usize {
+    #[must_use]
+    pub const fn total_blocked(&self) -> usize {
         self.ads_blocked + self.trackers_blocked
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BlockReason {
     Ad,
     Tracker,
@@ -333,7 +333,7 @@ fn bloom_hash(bytes: &[u8]) -> u64 {
 
 /// Set bit in Bloom filter (double hashing: h1 and h2 from single hash)
 #[inline]
-fn bloom_set(filter: &mut [u8; BLOOM_SIZE_BYTES], hash: u64) {
+const fn bloom_set(filter: &mut [u8; BLOOM_SIZE_BYTES], hash: u64) {
     let h1 = (hash & 0x7FFF) as usize; // lower 15 bits
     let h2 = ((hash >> 16) & 0x7FFF) as usize; // next 15 bits
     filter[h1 >> 3] |= 1 << (h1 & 7);
@@ -342,7 +342,7 @@ fn bloom_set(filter: &mut [u8; BLOOM_SIZE_BYTES], hash: u64) {
 
 /// Test bit in Bloom filter (branchless: both bits must be set)
 #[inline]
-fn bloom_test(filter: &[u8; BLOOM_SIZE_BYTES], hash: u64) -> bool {
+const fn bloom_test(filter: &[u8; BLOOM_SIZE_BYTES], hash: u64) -> bool {
     let h1 = (hash & 0x7FFF) as usize;
     let h2 = ((hash >> 16) & 0x7FFF) as usize;
     (filter[h1 >> 3] & (1 << (h1 & 7)) != 0) & (filter[h2 >> 3] & (1 << (h2 & 7)) != 0)

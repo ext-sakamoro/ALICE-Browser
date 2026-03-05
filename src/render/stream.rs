@@ -50,7 +50,7 @@ pub struct GrabbedInfo<'a> {
 
 // ── Rotunda Layer ──
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RotundaLayer {
     /// Trend words, headings — slow rotation
     Upper,
@@ -161,8 +161,8 @@ fn classify_layer(meta: &TextMeta) -> RotundaLayer {
     match meta.tag.as_str() {
         "h1" | "h2" | "h3" | "h4" | "h5" | "h6" => RotundaLayer::Upper,
         "a" | "p" | "li" | "button" => RotundaLayer::Eye,
-        "span" | "em" | "strong" | "b" | "i" | "u" | "small"
-        | "td" | "th" | "dt" | "dd" | "figcaption" | "summary" | "time" => RotundaLayer::Lower,
+        "span" | "em" | "strong" | "b" | "i" | "u" | "small" | "td" | "th" | "dt" | "dd"
+        | "figcaption" | "summary" | "time" => RotundaLayer::Lower,
         _ => {
             if meta.importance >= 0.5 {
                 RotundaLayer::Upper
@@ -178,7 +178,7 @@ fn classify_layer(meta: &TextMeta) -> RotundaLayer {
 // ── Build ──
 
 impl StreamState {
-    #[must_use] 
+    #[must_use]
     pub fn from_layout(root: &LayoutNode) -> Self {
         let mut categories = Vec::new();
         let mut text_pool: Vec<TextMeta> = Vec::new();
@@ -244,8 +244,9 @@ impl StreamState {
             let base_angle = (slot as f32 / upper_count as f32) * std::f32::consts::TAU;
             let jitter_a = (stream_hash(next_id * 37) - 0.5) * 2.0 * ANGULAR_JITTER;
             let y = UPPER_Y_MIN + stream_hash(next_id * 53) * (UPPER_Y_MAX - UPPER_Y_MIN);
-            let lifetime = LIFETIME_MIN
-                + meta.importance * (LIFETIME_MAX - LIFETIME_MIN)
+            let lifetime = meta
+                .importance
+                .mul_add(LIFETIME_MAX - LIFETIME_MIN, LIFETIME_MIN)
                 + stream_hash(next_id * 71) * 3.0;
             let age = stream_hash(next_id * 19) * lifetime;
 
@@ -284,11 +285,11 @@ impl StreamState {
             } else {
                 row as f32 / (EYE_ROWS - 1) as f32
             };
-            let y = EYE_Y_MIN
-                + row_frac * (EYE_Y_MAX - EYE_Y_MIN)
-                + (stream_hash(next_id * 53) - 0.5) * 2.0 * Y_JITTER;
-            let lifetime = LIFETIME_MIN
-                + meta.importance * (LIFETIME_MAX - LIFETIME_MIN)
+            let y = ((stream_hash(next_id * 53) - 0.5) * 2.0)
+                .mul_add(Y_JITTER, EYE_Y_MIN + row_frac * (EYE_Y_MAX - EYE_Y_MIN));
+            let lifetime = meta
+                .importance
+                .mul_add(LIFETIME_MAX - LIFETIME_MIN, LIFETIME_MIN)
                 + stream_hash(next_id * 71) * 3.0;
             let age = stream_hash(next_id * 19) * lifetime;
 
@@ -320,8 +321,9 @@ impl StreamState {
             let base_angle = (slot as f32 / lower_count as f32) * std::f32::consts::TAU;
             let jitter_a = (stream_hash(next_id * 37) - 0.5) * 2.0 * ANGULAR_JITTER;
             let y = LOWER_Y_MIN + stream_hash(next_id * 53) * (LOWER_Y_MAX - LOWER_Y_MIN);
-            let lifetime = LIFETIME_MIN
-                + meta.importance * (LIFETIME_MAX - LIFETIME_MIN)
+            let lifetime = meta
+                .importance
+                .mul_add(LIFETIME_MAX - LIFETIME_MIN, LIFETIME_MIN)
                 + stream_hash(next_id * 71) * 3.0;
             let age = stream_hash(next_id * 19) * lifetime;
 
@@ -344,7 +346,7 @@ impl StreamState {
 
         let pool_cursor: usize = next_id;
 
-        StreamState {
+        Self {
             particles,
             categories,
             text_pool,
@@ -442,8 +444,7 @@ impl StreamState {
             RotundaLayer::Lower => (LOWER_Y_MIN, LOWER_Y_MAX),
         };
         p.y_pos = y_min + stream_hash(seed * 53) * (y_max - y_min);
-        p.lifetime = LIFETIME_MIN
-            + importance * (LIFETIME_MAX - LIFETIME_MIN)
+        p.lifetime = importance.mul_add(LIFETIME_MAX - LIFETIME_MIN, LIFETIME_MIN)
             + stream_hash(seed * 71) * 3.0;
         p.age = 0.0;
         p.grabbed = false;
@@ -458,10 +459,10 @@ impl StreamState {
 
     /// Get 3D world position on the cylinder wall.
     /// Billboarding: x = R*cos(angle), z = R*sin(angle), y = `y_pos`.
-    #[must_use] 
+    #[must_use]
     pub fn particle_world_pos(p: &TextParticle, time: f32) -> [f32; 3] {
         let phase = p.id as f32 * 1.618;
-        let drift_y = (time * 0.2 + phase * 0.7).sin() * 0.08;
+        let drift_y = time.mul_add(0.2, phase * 0.7).sin() * 0.08;
 
         let a = p.angle;
 
@@ -473,7 +474,7 @@ impl StreamState {
     }
 
     /// Lifecycle-based opacity (fade in / visible / fade out).
-    #[must_use] 
+    #[must_use]
     pub fn particle_opacity(p: &TextParticle) -> f32 {
         if p.grabbed {
             return 1.0;
@@ -490,8 +491,8 @@ impl StreamState {
     }
 
     /// Layer-based font size multiplier.
-    #[must_use] 
-    pub fn layer_font_scale(layer: RotundaLayer) -> f32 {
+    #[must_use]
+    pub const fn layer_font_scale(layer: RotundaLayer) -> f32 {
         match layer {
             RotundaLayer::Upper => 1.3,  // big headings
             RotundaLayer::Eye => 1.0,    // normal
@@ -532,13 +533,13 @@ impl StreamState {
             let wz = world[2];
 
             // Camera rotation: azimuth (Y-axis) then elevation (X-axis)
-            let rx1 = wx * cos_az + wz * sin_az;
+            let rx1 = wx.mul_add(cos_az, wz * sin_az);
             let ry1 = wy;
-            let rz1 = -wx * sin_az + wz * cos_az;
+            let rz1 = (-wx).mul_add(sin_az, wz * cos_az);
 
             let rx = rx1;
-            let ry = ry1 * cos_el - rz1 * sin_el;
-            let rz = ry1 * sin_el + rz1 * cos_el;
+            let ry = ry1.mul_add(cos_el, -(rz1 * sin_el));
+            let rz = ry1.mul_add(sin_el, rz1 * cos_el);
 
             // Skip particles behind camera
             if rz < 1.0 {
@@ -551,10 +552,10 @@ impl StreamState {
 
             let dx = ndc_x - click_ndc_x;
             let dy = ndc_y - click_ndc_y;
-            let dist = dx * dx + dy * dy;
+            let dist = dx.mul_add(dx, dy * dy);
 
             // Hit radius: generous for usability
-            let hit_radius = 0.04 + p.importance * 0.06;
+            let hit_radius = p.importance.mul_add(0.06, 0.04);
             if dist < hit_radius * hit_radius && dist < best_dist {
                 best_dist = dist;
                 best_idx = Some(i);
@@ -586,7 +587,7 @@ impl StreamState {
     }
 
     /// Get rich info about the currently grabbed particle.
-    #[must_use] 
+    #[must_use]
     pub fn grabbed_info(&self) -> Option<GrabbedInfo<'_>> {
         let idx = self.grabbed_index?;
         let p = self.particles.get(idx)?;
@@ -606,8 +607,8 @@ impl StreamState {
     }
 
     /// Return an empty `SdfScene` with white background.
-    #[must_use] 
-    pub fn to_sdf_scene(&self) -> SdfScene {
+    #[must_use]
+    pub const fn to_sdf_scene(&self) -> SdfScene {
         SdfScene {
             primitives: Vec::new(),
             background_color: [1.0, 1.0, 1.0, 1.0],
@@ -655,8 +656,8 @@ fn collect_rich_texts(node: &LayoutNode, category_index: usize, out: &mut Vec<Te
         "h3" | "h4" | "h5" | "h6" => (0.6, true),
         "a" => (0.5, true),
         "button" | "label" => (0.4, true),
-        "p" | "li" | "span" | "em" | "strong" | "b" | "i" | "u"
-        | "td" | "th" | "dt" | "dd" | "figcaption" | "summary" | "time" => (0.2, true),
+        "p" | "li" | "span" | "em" | "strong" | "b" | "i" | "u" | "td" | "th" | "dt" | "dd"
+        | "figcaption" | "summary" | "time" => (0.2, true),
         _ => (0.15, false),
     };
 

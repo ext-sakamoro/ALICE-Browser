@@ -16,7 +16,7 @@ pub struct LayoutNode {
     pub text: String,
     pub classification: Classification,
     pub bounds: LayoutBox,
-    pub children: Vec<LayoutNode>,
+    pub children: Vec<Self>,
     pub is_block: bool,
     pub font_size: f32,
     pub href: Option<String>,
@@ -84,7 +84,7 @@ fn tag_padding(tag: &str, is_block: bool) -> f32 {
 }
 
 /// Compute layout for a DOM tree (simple top-to-bottom block model).
-#[must_use] 
+#[must_use]
 pub fn compute_layout(root: &DomNode, viewport_width: f32) -> LayoutNode {
     let mut cursor_y = 0.0;
     layout_node(root, 0.0, &mut cursor_y, viewport_width, 16.0)
@@ -143,7 +143,7 @@ fn layout_node(
 
     // Layout children
     let child_x = x + padding;
-    let child_width = (available_width - padding * 2.0).max(0.0);
+    let child_width = padding.mul_add(-2.0, available_width).max(0.0);
     let mut children = Vec::new();
 
     for child in &node.children {

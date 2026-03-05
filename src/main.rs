@@ -107,11 +107,8 @@ impl eframe::App for BrowserApp {
                         [data.width as usize, data.height as usize],
                         &data.rgba,
                     );
-                    let tex = ctx.load_texture(
-                        format!("img_{}", url),
-                        image,
-                        egui::TextureOptions::LINEAR,
-                    );
+                    let tex =
+                        ctx.load_texture(format!("img_{url}"), image, egui::TextureOptions::LINEAR);
                     self.image_textures.insert(url, tex);
                 }
             }

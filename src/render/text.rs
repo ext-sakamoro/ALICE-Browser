@@ -36,7 +36,7 @@ pub struct MsdfAtlas {
 impl MsdfAtlas {
     /// Create a default monospace-approximation atlas for basic ASCII.
     /// Real MSDF atlas would be loaded from a generated font texture.
-    #[must_use] 
+    #[must_use]
     pub fn default_ascii() -> Self {
         let mut glyphs = Vec::with_capacity(96);
         for i in 32u8..=126 {
@@ -68,7 +68,7 @@ impl MsdfAtlas {
     }
 
     /// Look up a glyph by character.
-    #[must_use] 
+    #[must_use]
     pub fn glyph(&self, ch: char) -> Option<&MsdfGlyph> {
         self.glyphs.iter().find(|g| g.codepoint == ch)
     }
@@ -106,7 +106,7 @@ pub struct TextQuad {
 ///
 /// Each character becomes a positioned quad with atlas UV coordinates.
 /// The text is laid out left-to-right starting from `origin`.
-#[must_use] 
+#[must_use]
 pub fn generate_text_quads(node: &SdfTextNode, atlas: &MsdfAtlas) -> Vec<TextQuad> {
     let mut quads = Vec::with_capacity(node.text.len());
     let scale = node.font_size;
@@ -116,14 +116,14 @@ pub fn generate_text_quads(node: &SdfTextNode, atlas: &MsdfAtlas) -> Vec<TextQua
         .filter_map(|ch| atlas.glyph(ch))
         .map(|g| g.advance * scale)
         .sum();
-    let mut cursor_x = node.position[0] - total_width * 0.5;
+    let mut cursor_x = total_width.mul_add(-0.5, node.position[0]);
 
     for ch in node.text.chars() {
         if let Some(glyph) = atlas.glyph(ch) {
             let w = glyph.size[0] * scale;
             let h = glyph.size[1] * scale;
-            let x = cursor_x + glyph.bearing[0] * scale + w * 0.5;
-            let y = node.position[1] + glyph.bearing[1] * scale;
+            let x = w.mul_add(0.5, glyph.bearing[0].mul_add(scale, cursor_x));
+            let y = glyph.bearing[1].mul_add(scale, node.position[1]);
 
             quads.push(TextQuad {
                 center: [x, y, node.position[2]],

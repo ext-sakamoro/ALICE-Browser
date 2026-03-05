@@ -55,7 +55,7 @@ enum SdfElement {
 fn classify_tag(tag: &str, depth: u32) -> SdfElement {
     match tag {
         "section" | "article" | "main" | "div" => SdfElement::Wall {
-            thickness: 0.10 + depth as f32 * 0.03,
+            thickness: (depth as f32).mul_add(0.03, 0.10),
             color: [0.93, 0.93, 0.96, 0.85],
         },
         "nav" | "header" | "footer" => SdfElement::Beam {
@@ -147,7 +147,7 @@ struct SpatialBuilder {
 }
 
 impl SpatialBuilder {
-    fn new(cfg: SpatialConfig) -> Self {
+    const fn new(cfg: SpatialConfig) -> Self {
         Self {
             cfg,
             primitives: Vec::new(),
@@ -211,7 +211,7 @@ impl SpatialBuilder {
         let s = self.cfg.pixel_to_meter;
         let z_base = -(b.y * s);
         let z_forward = depth as f32 * self.cfg.protrusion;
-        let cx = b.x * s + b.width * s / 2.0;
+        let cx = b.x.mul_add(s, b.width * s / 2.0);
         let w = (b.width * s).max(0.02);
         let h = (b.height * s).max(0.02);
 
@@ -247,7 +247,7 @@ impl SpatialBuilder {
                 if !text.is_empty() {
                     let slab_h = (node.font_size * s * 1.8).max(0.08);
                     let slab_w = w.min(2.0);
-                    let thickness = 0.04 + (6.0 - *level as f32) * 0.01;
+                    let thickness = (6.0 - *level as f32).mul_add(0.01, 0.04);
                     self.primitives.push(SdfPrimitive::RoundedBox {
                         center: [cx, slab_h / 2.0 + 0.02, z_base + z_forward + 0.05],
                         size: [slab_w, slab_h, thickness],
@@ -356,7 +356,7 @@ impl SpatialBuilder {
     fn emit_corridor(&mut self, parent: &LayoutNode, items: &[&LayoutNode], depth: u32) {
         let s = self.cfg.pixel_to_meter;
         let pb = &parent.bounds;
-        let cx = pb.x * s + pb.width * s / 2.0;
+        let cx = pb.x.mul_add(s, pb.width * s / 2.0);
         let w = (pb.width * s).max(0.02);
         let z_base = -(pb.y * s);
         let z_forward = depth as f32 * self.cfg.protrusion;
@@ -364,11 +364,11 @@ impl SpatialBuilder {
         let corridor_w = w.min(2.5);
 
         // ── Side walls ──
-        let corridor_len = items.len() as f32 * spacing + 0.5;
+        let corridor_len = (items.len() as f32).mul_add(spacing, 0.5);
         for side in [-1.0_f32, 1.0] {
             self.primitives.push(SdfPrimitive::RoundedBox {
                 center: [
-                    cx + side * (corridor_w / 2.0 + 0.04),
+                    side.mul_add(corridor_w / 2.0 + 0.04, cx),
                     0.3,
                     z_base + z_forward - corridor_len / 2.0,
                 ],
@@ -380,7 +380,7 @@ impl SpatialBuilder {
 
         // ── Each feed item as a panel + floor divider ──
         for (i, item) in items.iter().enumerate() {
-            let item_z = z_base + z_forward - (i as f32 * spacing);
+            let item_z = (i as f32).mul_add(-spacing, z_base + z_forward);
             let ib = &item.bounds;
             let item_h = (ib.height * s).clamp(0.04, 0.4);
             let item_w = corridor_w * 0.9;
@@ -395,7 +395,7 @@ impl SpatialBuilder {
 
             // Floor divider line between items
             if i > 0 {
-                let div_z = item_z + spacing * 0.5;
+                let div_z = spacing.mul_add(0.5, item_z);
                 self.primitives.push(SdfPrimitive::Line {
                     start: [cx - item_w / 2.0, 0.003, div_z],
                     end: [cx + item_w / 2.0, 0.003, div_z],
@@ -492,7 +492,7 @@ fn detect_feed_pattern<'a>(
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 /// Convert a 2D layout into a 3D spatial scene
-#[must_use] 
+#[must_use]
 pub fn layout_to_spatial(root: &LayoutNode, config: &SpatialConfig) -> SdfScene {
     let builder = SpatialBuilder::new(config.clone());
     builder.build(root)
@@ -546,15 +546,15 @@ struct OzPalette;
 
 impl OzPalette {
     /// Sun: pure glowing white
-    fn sun() -> [f32; 4] {
+    const fn sun() -> [f32; 4] {
         [1.0, 1.0, 0.98, 1.0]
     }
     /// Orbit ring: faint cyan-white
-    fn ring() -> [f32; 4] {
+    const fn ring() -> [f32; 4] {
         [0.70, 0.90, 1.0, 0.3]
     }
     /// Connector lines: subtle white
-    fn connector() -> [f32; 4] {
+    const fn connector() -> [f32; 4] {
         [0.75, 0.80, 0.90, 0.35]
     }
 
@@ -577,9 +577,9 @@ impl OzPalette {
     fn satellite(parent_index: usize) -> [f32; 4] {
         let base = Self::planet(parent_index);
         [
-            (base[0] * 0.6 + 0.4).min(1.0),
-            (base[1] * 0.6 + 0.4).min(1.0),
-            (base[2] * 0.6 + 0.4).min(1.0),
+            base[0].mul_add(0.6, 0.4).min(1.0),
+            base[1].mul_add(0.6, 0.4).min(1.0),
+            base[2].mul_add(0.6, 0.4).min(1.0),
             0.9,
         ]
     }
@@ -588,9 +588,9 @@ impl OzPalette {
     fn micro(parent_index: usize) -> [f32; 4] {
         let base = Self::planet(parent_index);
         [
-            (base[0] * 0.35 + 0.65).min(1.0),
-            (base[1] * 0.35 + 0.65).min(1.0),
-            (base[2] * 0.35 + 0.65).min(1.0),
+            base[0].mul_add(0.35, 0.65).min(1.0),
+            base[1].mul_add(0.35, 0.65).min(1.0),
+            base[2].mul_add(0.35, 0.65).min(1.0),
             0.75,
         ]
     }
@@ -625,7 +625,7 @@ pub struct OzBuildResult {
 ///
 /// Structure (planets, orbits, satellites) and Information (headlines on outer ring)
 /// are completely separated. Planets are pure colored glass — no text labels.
-#[must_use] 
+#[must_use]
 pub fn build_oz_system(root: &LayoutNode, config: &OzConfig) -> OzBuildResult {
     let mut primitives = Vec::new();
     let mut anim = OzAnimState::new();
@@ -661,8 +661,8 @@ pub fn build_oz_system(root: &LayoutNode, config: &OzConfig) -> OzBuildResult {
     let mut planet_prim_indices: Vec<usize> = Vec::new();
 
     for (pi, planet_node) in planets.iter().enumerate() {
-        let orbit_r = config.orbit_base + pi as f32 * config.orbit_spread;
-        let inclination = oz_hash(pi * 7 + 3) * std::f32::consts::PI * 0.7 + 0.15;
+        let orbit_r = (pi as f32).mul_add(config.orbit_spread, config.orbit_base);
+        let inclination = (oz_hash(pi * 7 + 3) * std::f32::consts::PI).mul_add(0.7, 0.15);
         let base_angle = 2.0 * std::f32::consts::PI * pi as f32 / planet_count as f32;
         let angle = base_angle + oz_hash(pi * 13 + 1) * 0.4;
 
@@ -741,8 +741,8 @@ pub fn build_oz_system(root: &LayoutNode, config: &OzConfig) -> OzBuildResult {
 
     // ── News Ticker Ring: outer Data Ring ──
     let outermost_orbit =
-        config.orbit_base + (planet_count.max(1) - 1) as f32 * config.orbit_spread;
-    let data_ring_radius = outermost_orbit + config.orbit_spread * 1.5 + 2.0;
+        ((planet_count.max(1) - 1) as f32).mul_add(config.orbit_spread, config.orbit_base);
+    let data_ring_radius = config.orbit_spread.mul_add(1.5, outermost_orbit) + 2.0;
 
     // Data Ring Torus (visible ring)
     primitives.push(SdfPrimitive::Torus {

@@ -53,8 +53,8 @@ impl Default for OzAnimState {
 }
 
 impl OzAnimState {
-    #[must_use] 
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self { meta: Vec::new() }
     }
 
@@ -66,7 +66,7 @@ impl OzAnimState {
 /// Animate the OZ scene at time `t` (seconds since start).
 ///
 /// Returns a new `SdfScene` with updated positions.
-#[must_use] 
+#[must_use]
 pub fn animate_oz(
     base_scene: &SdfScene,
     state: &OzAnimState,
@@ -96,7 +96,7 @@ pub fn animate_oz(
                 } else {
                     0.5
                 };
-                let angle = meta.angle_offset + t * speed;
+                let angle = t.mul_add(speed, meta.angle_offset);
                 let incl = meta.inclination;
 
                 let lx = meta.orbit_radius * angle.cos();
@@ -140,7 +140,9 @@ pub fn animate_oz(
                     axis[0] = (base_incl + wobble).sin();
                     axis[1] = (base_incl + wobble).cos();
                     axis[2] = (wobble * 0.3).sin() * 0.2;
-                    let len = (axis[0] * axis[0] + axis[1] * axis[1] + axis[2] * axis[2]).sqrt();
+                    let len = axis[2]
+                        .mul_add(axis[2], axis[0].mul_add(axis[0], axis[1] * axis[1]))
+                        .sqrt();
                     if len > 0.001 {
                         axis[0] /= len;
                         axis[1] /= len;
@@ -185,7 +187,7 @@ pub fn animate_oz(
                 // Constant-speed flow around the outer Data Ring
                 // All ticker texts rotate at the same speed (news ticker effect)
                 let ticker_speed = 0.08; // slow, readable
-                let angle = meta.angle_offset + t * ticker_speed;
+                let angle = t.mul_add(ticker_speed, meta.angle_offset);
                 let hx = ring_radius * angle.cos();
                 let hz = ring_radius * angle.sin();
 

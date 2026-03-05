@@ -24,7 +24,7 @@ struct Theme {
 }
 
 impl Theme {
-    fn light() -> Self {
+    const fn light() -> Self {
         Self {
             page_bg: Color32::from_rgb(250, 250, 252),
             card_bg: Color32::WHITE,
@@ -40,7 +40,7 @@ impl Theme {
         }
     }
 
-    fn dark() -> Self {
+    const fn dark() -> Self {
         Self {
             page_bg: Color32::from_rgb(24, 24, 30),
             card_bg: Color32::from_rgb(36, 36, 44),
@@ -69,8 +69,8 @@ impl Default for SdfPaintState {
 }
 
 impl SdfPaintState {
-    #[must_use] 
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self { hovered_id: None }
     }
 
@@ -228,7 +228,7 @@ fn color4(c: [f32; 4]) -> Color32 {
 }
 
 fn lerp_color(a: Color32, b: Color32, t: f32) -> Color32 {
-    let m = |a: u8, b: u8| ((a as f32) * (1.0 - t) + (b as f32) * t) as u8;
+    let m = |a: u8, b: u8| (a as f32).mul_add(1.0 - t, (b as f32) * t) as u8;
     Color32::from_rgba_unmultiplied(
         m(a.r(), b.r()),
         m(a.g(), b.g()),
@@ -270,14 +270,14 @@ fn draw_card(
     hover_t: f32,
     theme: &Theme,
 ) {
-    let shadow_depth = elem.shadow_depth * (1.0 + hover_t * 1.5);
-    let radius = elem.corner_radius + hover_t * 2.0;
+    let shadow_depth = elem.shadow_depth * hover_t.mul_add(1.5, 1.0);
+    let radius = hover_t.mul_add(2.0, elem.corner_radius);
     let rounding = Rounding::same(radius);
 
     // Multi-layer soft shadow
     for i in 0..3 {
         let offset = shadow_depth * (i as f32 + 1.0) / 3.0;
-        let alpha = (18.0 - i as f32 * 5.0).max(2.0) as u8;
+        let alpha = (i as f32).mul_add(-5.0, 18.0).max(2.0) as u8;
         let shadow_rect = rect.translate(Vec2::new(0.0, offset));
         painter.rect_filled(
             shadow_rect.expand(offset * 0.5),
@@ -380,7 +380,7 @@ fn draw_link(
                 rect.min - Vec2::new(3.0, 1.0),
                 Vec2::new(
                     rect.width()
-                        .min(elem.font_size * text.len() as f32 * 0.55 + 6.0),
+                        .min((elem.font_size * text.len() as f32).mul_add(0.55, 6.0)),
                     elem.font_size + 4.0,
                 ),
             );
@@ -408,7 +408,7 @@ fn draw_link(
         );
 
         // Underline
-        let alpha = ((0.4 + hover_t * 0.6) * 255.0) as u8;
+        let alpha = (hover_t.mul_add(0.6, 0.4) * 255.0) as u8;
         let y = text_rect.max.y;
         painter.line_segment(
             [Pos2::new(text_rect.min.x, y), Pos2::new(text_rect.max.x, y)],
@@ -432,7 +432,7 @@ fn draw_button(
     elem: &PaintElement,
     hover_t: f32,
 ) {
-    let radius = elem.corner_radius + hover_t * 2.0;
+    let radius = hover_t.mul_add(2.0, elem.corner_radius);
     let rounding = Rounding::same(radius);
 
     // Shadow

@@ -58,7 +58,7 @@ pub const RECIPROCALS: Reciprocals = Reciprocals {
 /// Accuracy: ~23 bits (sufficient for layout/rendering, NOT for scientific computing)
 /// Speed: ~4 cycles vs ~20 for hardware division
 #[inline(always)]
-#[must_use] 
+#[must_use]
 pub fn fast_rcp(x: f32) -> f32 {
     #[cfg(target_arch = "x86_64")]
     // SAFETY: SSE support is checked at runtime via is_x86_feature_detected!.
@@ -89,7 +89,7 @@ pub fn fast_rcp(x: f32) -> f32 {
 /// Accuracy: ~0.17% error (perfect for layout, rendering, collision)
 /// Speed: ~5 cycles vs ~25 for sqrt + div
 #[inline(always)]
-#[must_use] 
+#[must_use]
 pub fn fast_inv_sqrt(x: f32) -> f32 {
     #[cfg(target_arch = "x86_64")]
     // SAFETY: SSE support is checked at runtime via is_x86_feature_detected!.
@@ -108,7 +108,7 @@ pub fn fast_inv_sqrt(x: f32) -> f32 {
     i = 0x5f37_59df - (i >> 1); // Magic!
     let y = f32::from_bits(i);
     // One Newton-Raphson step
-    y * (1.5 - half_x * y * y)
+    y * (half_x * y).mul_add(-y, 1.5)
 }
 
 /// Fast approximate square root using `fast_inv_sqrt`.
@@ -116,7 +116,7 @@ pub fn fast_inv_sqrt(x: f32) -> f32 {
 ///
 /// Avoids the slow hardware sqrt instruction.
 #[inline(always)]
-#[must_use] 
+#[must_use]
 pub fn fast_sqrt(x: f32) -> f32 {
     if x <= 0.0 {
         return 0.0;
@@ -131,7 +131,7 @@ pub fn fast_sqrt(x: f32) -> f32 {
 /// 1. Speed: 1 cycle latency instead of 2
 /// 2. Precision: only 1 rounding step instead of 2
 #[inline(always)]
-#[must_use] 
+#[must_use]
 pub fn fma(a: f32, b: f32, c: f32) -> f32 {
     // std::intrinsics::fmaf32 is not stable; use the mul_add method
     a.mul_add(b, c)
@@ -140,7 +140,7 @@ pub fn fma(a: f32, b: f32, c: f32) -> f32 {
 /// FMA chain: a * b + c * d
 /// = fma(a, b, c * d)
 #[inline(always)]
-#[must_use] 
+#[must_use]
 pub fn fma_chain(a: f32, b: f32, c: f32, d: f32) -> f32 {
     a.mul_add(b, c * d)
 }
@@ -157,7 +157,7 @@ pub fn fma_chain(a: f32, b: f32, c: f32, d: f32) -> f32 {
 ///
 /// Saves one sqrt (25 cycles) per comparison.
 #[inline(always)]
-#[must_use] 
+#[must_use]
 pub fn distance_squared(x1: f32, y1: f32, x2: f32, y2: f32) -> f32 {
     let dx = x2 - x1;
     let dy = y2 - y1;
@@ -166,7 +166,7 @@ pub fn distance_squared(x1: f32, y1: f32, x2: f32, y2: f32) -> f32 {
 
 /// Length squared of a 2D vector (no sqrt)
 #[inline(always)]
-#[must_use] 
+#[must_use]
 pub fn length_squared(x: f32, y: f32) -> f32 {
     fma(x, x, y * y)
 }
@@ -174,7 +174,7 @@ pub fn length_squared(x: f32, y: f32) -> f32 {
 /// Linear interpolation using FMA for precision.
 /// lerp(a, b, t) = a + t * (b - a) = fma(t, b-a, a)
 #[inline(always)]
-#[must_use] 
+#[must_use]
 pub fn lerp(a: f32, b: f32, t: f32) -> f32 {
     fma(t, b - a, a)
 }
@@ -200,7 +200,7 @@ pub fn batch_fma(data: &mut [f32], a: f32, b: f32) {
 /// Convert degrees to radians using reciprocal multiplication.
 /// deg * (π/180) = deg * π * `inv_180`
 #[inline(always)]
-#[must_use] 
+#[must_use]
 pub fn deg_to_rad(deg: f32) -> f32 {
     deg * std::f32::consts::PI * RECIPROCALS.inv_180
 }
@@ -208,7 +208,7 @@ pub fn deg_to_rad(deg: f32) -> f32 {
 /// Normalize a value from [0, max] to [0.0, 1.0] using reciprocal.
 /// val / max → val * (1/max)
 #[inline(always)]
-#[must_use] 
+#[must_use]
 pub fn normalize(val: f32, inv_max: f32) -> f32 {
     val * inv_max
 }
@@ -223,8 +223,7 @@ mod tests {
         let rcp = fast_rcp(x);
         assert!(
             (rcp - 0.25).abs() < 0.001,
-            "fast_rcp(4) = {}, expected ~0.25",
-            rcp
+            "fast_rcp(4) = {rcp}, expected ~0.25"
         );
     }
 
@@ -234,8 +233,7 @@ mod tests {
         let inv_sqrt = fast_inv_sqrt(x);
         assert!(
             (inv_sqrt - 0.5).abs() < 0.01,
-            "fast_inv_sqrt(4) = {}, expected ~0.5",
-            inv_sqrt
+            "fast_inv_sqrt(4) = {inv_sqrt}, expected ~0.5"
         );
     }
 
@@ -245,8 +243,7 @@ mod tests {
         let sqrt = fast_sqrt(x);
         assert!(
             (sqrt - 3.0).abs() < 0.1,
-            "fast_sqrt(9) = {}, expected ~3.0",
-            sqrt
+            "fast_sqrt(9) = {sqrt}, expected ~3.0"
         );
     }
 
@@ -361,10 +358,7 @@ mod tests {
             let expected = 1.0 / x;
             assert!(
                 (rcp - expected).abs() < 0.01,
-                "fast_rcp({}) = {}, expected {}",
-                x,
-                rcp,
-                expected
+                "fast_rcp({x}) = {rcp}, expected {expected}"
             );
         }
     }

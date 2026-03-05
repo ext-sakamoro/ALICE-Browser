@@ -19,7 +19,7 @@ pub struct LinkPreview {
     pub status: LinkPreviewStatus,
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Eq)]
 pub enum LinkPreviewStatus {
     Loading,
     Ready,
@@ -34,7 +34,7 @@ pub fn resolve_url(base: &str, href: &str) -> String {
         return href.to_string();
     }
     if href.starts_with("//") {
-        return format!("https:{}", href);
+        return format!("https:{href}");
     }
     if let Ok(base_url) = url::Url::parse(base) {
         if let Ok(resolved) = base_url.join(href) {
@@ -46,7 +46,7 @@ pub fn resolve_url(base: &str, href: &str) -> String {
 
 // ─── DOM href collection ─────────────────────────────────────────────────────
 
-/// Collect unique hrefs from a DomNode tree, resolved to absolute URLs.
+/// Collect unique hrefs from a `DomNode` tree, resolved to absolute URLs.
 pub fn collect_hrefs_from_dom(node: &DomNode, base_url: &str, limit: usize) -> Vec<String> {
     let mut seen = std::collections::HashSet::new();
     let mut hrefs = Vec::new();
@@ -109,8 +109,8 @@ pub fn extract_prefetch_texts(node: &DomNode, out: &mut Vec<TextMeta>, depth: us
         "h3" | "h4" | "h5" | "h6" => (0.5, true),
         "a" => (0.4, true),
         "p" | "li" => (0.2, true),
-        "span" | "em" | "strong" | "b" | "i" | "u" | "small" => (0.15, true),
-        "td" | "th" | "dt" | "dd" | "figcaption" | "summary" | "time" => (0.15, true),
+        "span" | "em" | "strong" | "b" | "i" | "u" | "small" | "td" | "th" | "dt" | "dd"
+        | "figcaption" | "summary" | "time" => (0.15, true),
         _ => (0.1, false),
     };
 

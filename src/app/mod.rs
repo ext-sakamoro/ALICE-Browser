@@ -22,6 +22,7 @@ use crate::oz::LinkPreview;
 
 // ─── Application state ───────────────────────────────────────────────────────
 
+#[allow(clippy::struct_excessive_bools)]
 pub struct BrowserApp {
     pub url_input: String,
     pub page: Option<PageResult>,

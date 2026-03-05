@@ -230,8 +230,8 @@ fn blend_i32(mask: MaskF32x8, a: I32x8, b: I32x8) -> I32x8 {
 
 /// Convert SIMD classification index back to `dom::Classification`
 #[inline]
-#[must_use] 
-pub fn index_to_classification(idx: i32) -> crate::dom::Classification {
+#[must_use]
+pub const fn index_to_classification(idx: i32) -> crate::dom::Classification {
     crate::dom::Classification::from_index(idx as usize)
 }
 

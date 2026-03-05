@@ -10,7 +10,7 @@ use eframe::egui;
 // ─── Layout rendering ─────────────────────────────────────────────────────────
 
 /// Recursively render a `LayoutNode` tree using egui widgets.
-#[allow(clippy::only_used_in_recursion)]
+#[allow(clippy::only_used_in_recursion, clippy::too_many_lines)]
 pub fn render_layout_node(
     ui: &mut egui::Ui,
     node: &LayoutNode,
@@ -138,7 +138,7 @@ pub fn truncate_str(s: &str, max_chars: usize) -> String {
         s.to_string()
     } else {
         let t: String = s.chars().take(max_chars.saturating_sub(3)).collect();
-        format!("{}...", t)
+        format!("{t}...")
     }
 }
 

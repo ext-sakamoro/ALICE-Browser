@@ -27,7 +27,7 @@ impl Default for ImageLoader {
 }
 
 impl ImageLoader {
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             pending: HashMap::new(),
@@ -78,25 +78,25 @@ impl ImageLoader {
     }
 
     /// Get a loaded image's data.
-    #[must_use] 
+    #[must_use]
     pub fn get(&self, url: &str) -> Option<&ImageData> {
         self.loaded.get(url)
     }
 
     /// Get all loaded image URLs.
-    #[must_use] 
+    #[must_use]
     pub fn loaded_urls(&self) -> Vec<String> {
         self.loaded.keys().cloned().collect()
     }
 
     /// Number of successfully loaded images.
-    #[must_use] 
+    #[must_use]
     pub fn loaded_count(&self) -> usize {
         self.loaded.len()
     }
 
     /// Number of images still being fetched.
-    #[must_use] 
+    #[must_use]
     pub fn pending_count(&self) -> usize {
         self.pending.len()
     }

@@ -13,7 +13,7 @@ pub struct StyleProps {
 }
 
 /// Parse an inline `style="..."` attribute value.
-#[must_use] 
+#[must_use]
 pub fn parse_inline_style(style: &str) -> StyleProps {
     let mut props = StyleProps::default();
     for decl in style.split(';') {
@@ -35,7 +35,7 @@ pub fn parse_inline_style(style: &str) -> StyleProps {
 }
 
 /// Parse a CSS color value into [r, g, b, a] (0.0–1.0).
-#[must_use] 
+#[must_use]
 pub fn parse_css_color(val: &str) -> Option<[f32; 4]> {
     let v = val.trim().to_lowercase();
 

@@ -54,8 +54,8 @@ pub struct BrowserEngine {
 }
 
 impl BrowserEngine {
-    #[must_use] 
-    pub fn new(viewport_width: f32) -> Self {
+    #[must_use]
+    pub const fn new(viewport_width: f32) -> Self {
         Self {
             filter: SemanticFilter::new(),
             viewport_width,
@@ -65,15 +65,15 @@ impl BrowserEngine {
     }
 
     /// Set the ad blocker engine (shared reference).
-    #[must_use] 
+    #[must_use]
     pub fn with_adblock(mut self, adblock: Arc<AdBlockEngine>) -> Self {
         self.adblock = Some(adblock);
         self
     }
 
     /// Enable/disable SIMD pipeline
-    #[must_use] 
-    pub fn with_simd(mut self, enabled: bool) -> Self {
+    #[must_use]
+    pub const fn with_simd(mut self, enabled: bool) -> Self {
         self.use_simd = enabled;
         self
     }
@@ -272,7 +272,7 @@ impl BrowserEngine {
         }
     }
 
-    pub fn set_viewport_width(&mut self, width: f32) {
+    pub const fn set_viewport_width(&mut self, width: f32) {
         self.viewport_width = width;
     }
 }

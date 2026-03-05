@@ -313,7 +313,7 @@ fn scene_bounds(scene: &SdfScene) -> (Vec3, Vec3) {
 // ── Sky ──
 
 fn sky_color(dir: Vec3, bg: [f32; 4]) -> [f32; 3] {
-    let t = (dir.y * 0.5 + 0.5).clamp(0.0, 1.0);
+    let t = dir.y.mul_add(0.5, 0.5).clamp(0.0, 1.0);
     let horizon = [bg[0], bg[1], bg[2]];
     let zenith = [
         (bg[0] * 0.5).min(0.4),
@@ -321,16 +321,16 @@ fn sky_color(dir: Vec3, bg: [f32; 4]) -> [f32; 3] {
         (bg[2] * 0.8).min(0.9),
     ];
     [
-        horizon[0] * (1.0 - t) + zenith[0] * t,
-        horizon[1] * (1.0 - t) + zenith[1] * t,
-        horizon[2] * (1.0 - t) + zenith[2] * t,
+        horizon[0].mul_add(1.0 - t, zenith[0] * t),
+        horizon[1].mul_add(1.0 - t, zenith[1] * t),
+        horizon[2].mul_add(1.0 - t, zenith[2] * t),
     ]
 }
 
 // ── Public rendering API ──
 
 /// Render an SDF scene with interactive camera parameters.
-#[must_use] 
+#[must_use]
 pub fn render_sdf_interactive(
     scene: &SdfScene,
     width: usize,
@@ -354,7 +354,7 @@ pub fn render_sdf_interactive(
 }
 
 /// Render an SDF scene to an RGBA pixel buffer (auto-framing).
-#[must_use] 
+#[must_use]
 pub fn render_sdf_image(
     scene: &SdfScene,
     width: usize,
@@ -382,7 +382,7 @@ pub fn render_sdf_image(
 }
 
 /// Compute initial camera params that auto-frame the scene.
-#[must_use] 
+#[must_use]
 pub fn auto_camera(scene: &SdfScene) -> CameraParams {
     let (mn, mx) = scene_bounds(scene);
     let center = (mn + mx) * 0.5;
@@ -426,10 +426,10 @@ fn render_scene(
         .par_chunks_exact_mut(row_size)
         .enumerate()
         .for_each(|(py, row_buf)| {
-            let v = -((py as f32 + 0.5) / height as f32 * 2.0 - 1.0);
+            let v = -((py as f32 + 0.5) / height as f32).mul_add(2.0, -1.0);
 
             for px in 0..width {
-                let u = (px as f32 + 0.5) / width as f32 * 2.0 - 1.0;
+                let u = ((px as f32 + 0.5) / width as f32).mul_add(2.0, -1.0);
                 let ray_dir = camera.ray(u, v, aspect);
 
                 // Sphere-trace using compiled SIMD evaluation
@@ -476,7 +476,7 @@ fn render_scene(
                         let col = mat * toon + shadow_col * (1.0 - toon);
 
                         // Rim lighting
-                        let rim = (1.0 - n.dot(view_dir).max(0.0)).powf(3.0) * 0.6;
+                        let rim = (1.0 - n.dot(view_dir).max(0.0)).powi(3) * 0.6;
                         let rim_col = mat * 0.5 + Vec3::splat(0.5);
                         col + rim_col * rim
                     };
