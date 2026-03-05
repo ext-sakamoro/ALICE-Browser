@@ -15,9 +15,19 @@ pub struct WebSdfScene {
 /// SDF primitive for web rendering
 #[derive(Debug, Clone)]
 pub enum WebSdfPrimitive {
-    Sphere { center: [f32; 3], radius: f32 },
-    Box { center: [f32; 3], half_extents: [f32; 3] },
-    Cylinder { base: [f32; 3], radius: f32, height: f32 },
+    Sphere {
+        center: [f32; 3],
+        radius: f32,
+    },
+    Box {
+        center: [f32; 3],
+        half_extents: [f32; 3],
+    },
+    Cylinder {
+        base: [f32; 3],
+        radius: f32,
+        height: f32,
+    },
 }
 
 impl WebSdfPrimitive {
@@ -30,15 +40,23 @@ impl WebSdfPrimitive {
                 let dz = p[2] - center[2];
                 (dx * dx + dy * dy + dz * dz).sqrt() - radius
             }
-            Self::Box { center, half_extents } => {
+            Self::Box {
+                center,
+                half_extents,
+            } => {
                 let dx = (p[0] - center[0]).abs() - half_extents[0];
                 let dy = (p[1] - center[1]).abs() - half_extents[1];
                 let dz = (p[2] - center[2]).abs() - half_extents[2];
-                let outside = (dx.max(0.0).powi(2) + dy.max(0.0).powi(2) + dz.max(0.0).powi(2)).sqrt();
+                let outside =
+                    (dx.max(0.0).powi(2) + dy.max(0.0).powi(2) + dz.max(0.0).powi(2)).sqrt();
                 let inside = dx.max(dy).max(dz).min(0.0);
                 outside + inside
             }
-            Self::Cylinder { base, radius, height } => {
+            Self::Cylinder {
+                base,
+                radius,
+                height,
+            } => {
                 let dx = p[0] - base[0];
                 let dz = p[2] - base[2];
                 let dist_xz = (dx * dx + dz * dz).sqrt() - radius;
@@ -51,13 +69,20 @@ impl WebSdfPrimitive {
 
 /// Evaluate scene SDF (union of all primitives)
 pub fn eval_scene(scene: &WebSdfScene, p: [f32; 3]) -> f32 {
-    scene.primitives.iter()
+    scene
+        .primitives
+        .iter()
         .map(|prim| prim.eval(p))
         .fold(f32::MAX, f32::min)
 }
 
 /// Simple sphere-trace for hit detection
-pub fn sphere_trace(scene: &WebSdfScene, origin: [f32; 3], dir: [f32; 3], max_steps: u32) -> Option<f32> {
+pub fn sphere_trace(
+    scene: &WebSdfScene,
+    origin: [f32; 3],
+    dir: [f32; 3],
+    max_steps: u32,
+) -> Option<f32> {
     let mut t = 0.0f32;
     for _ in 0..max_steps {
         let p = [
@@ -66,8 +91,12 @@ pub fn sphere_trace(scene: &WebSdfScene, origin: [f32; 3], dir: [f32; 3], max_st
             origin[2] + dir[2] * t,
         ];
         let d = eval_scene(scene, p);
-        if d < 0.001 { return Some(t); }
-        if t > 100.0 { return None; }
+        if d < 0.001 {
+            return Some(t);
+        }
+        if t > 100.0 {
+            return None;
+        }
         t += d;
     }
     None
@@ -79,14 +108,20 @@ mod tests {
 
     #[test]
     fn test_sphere_sdf() {
-        let s = WebSdfPrimitive::Sphere { center: [0.0; 3], radius: 1.0 };
+        let s = WebSdfPrimitive::Sphere {
+            center: [0.0; 3],
+            radius: 1.0,
+        };
         assert!((s.eval([0.0, 0.0, 0.0]) - (-1.0)).abs() < 0.001);
         assert!((s.eval([2.0, 0.0, 0.0]) - 1.0).abs() < 0.001);
     }
 
     #[test]
     fn test_box_sdf() {
-        let b = WebSdfPrimitive::Box { center: [0.0; 3], half_extents: [1.0, 1.0, 1.0] };
+        let b = WebSdfPrimitive::Box {
+            center: [0.0; 3],
+            half_extents: [1.0, 1.0, 1.0],
+        };
         assert!(b.eval([0.0, 0.0, 0.0]) < 0.0); // Inside
         assert!(b.eval([2.0, 0.0, 0.0]) > 0.0); // Outside
     }
@@ -95,8 +130,14 @@ mod tests {
     fn test_scene_union() {
         let scene = WebSdfScene {
             primitives: vec![
-                WebSdfPrimitive::Sphere { center: [0.0; 3], radius: 1.0 },
-                WebSdfPrimitive::Sphere { center: [3.0, 0.0, 0.0], radius: 1.0 },
+                WebSdfPrimitive::Sphere {
+                    center: [0.0; 3],
+                    radius: 1.0,
+                },
+                WebSdfPrimitive::Sphere {
+                    center: [3.0, 0.0, 0.0],
+                    radius: 1.0,
+                },
             ],
             camera_pos: [0.0, 0.0, 5.0],
             camera_target: [0.0; 3],
@@ -109,9 +150,10 @@ mod tests {
     #[test]
     fn test_sphere_trace_hit() {
         let scene = WebSdfScene {
-            primitives: vec![
-                WebSdfPrimitive::Sphere { center: [0.0, 0.0, 0.0], radius: 1.0 },
-            ],
+            primitives: vec![WebSdfPrimitive::Sphere {
+                center: [0.0, 0.0, 0.0],
+                radius: 1.0,
+            }],
             camera_pos: [0.0, 0.0, 5.0],
             camera_target: [0.0; 3],
         };
@@ -123,9 +165,10 @@ mod tests {
     #[test]
     fn test_sphere_trace_miss() {
         let scene = WebSdfScene {
-            primitives: vec![
-                WebSdfPrimitive::Sphere { center: [0.0, 0.0, 0.0], radius: 1.0 },
-            ],
+            primitives: vec![WebSdfPrimitive::Sphere {
+                center: [0.0, 0.0, 0.0],
+                radius: 1.0,
+            }],
             camera_pos: [0.0, 0.0, 5.0],
             camera_target: [0.0; 3],
         };

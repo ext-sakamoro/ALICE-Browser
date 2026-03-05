@@ -28,10 +28,9 @@ fn main() {
             ];
             for path in &font_paths {
                 if let Ok(data) = std::fs::read(path) {
-                    fonts.font_data.insert(
-                        "japanese".to_owned(),
-                        egui::FontData::from_owned(data),
-                    );
+                    fonts
+                        .font_data
+                        .insert("japanese".to_owned(), egui::FontData::from_owned(data));
                     fonts
                         .families
                         .get_mut(&egui::FontFamily::Proportional)

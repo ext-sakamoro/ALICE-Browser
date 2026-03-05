@@ -32,10 +32,16 @@ pub enum VoiceActivity {
 
 /// Simple energy-based voice activity detector
 pub fn detect_voice_activity(samples: &[f32], threshold_db: f32) -> VoiceActivity {
-    if samples.is_empty() { return VoiceActivity::Silent; }
+    if samples.is_empty() {
+        return VoiceActivity::Silent;
+    }
 
     let energy = samples.iter().map(|s| s * s).sum::<f32>() / samples.len() as f32;
-    let energy_db = if energy > 1e-10 { 10.0 * energy.log10() } else { -100.0 };
+    let energy_db = if energy > 1e-10 {
+        10.0 * energy.log10()
+    } else {
+        -100.0
+    };
 
     if energy_db < threshold_db {
         return VoiceActivity::Silent;
@@ -59,7 +65,9 @@ pub fn detect_voice_activity(samples: &[f32], threshold_db: f32) -> VoiceActivit
 
 /// Downsample from web audio rate to voice codec rate
 pub fn downsample_to_16k(samples: &[f32], src_rate: u32) -> Vec<f32> {
-    if src_rate <= 16000 { return samples.to_vec(); }
+    if src_rate <= 16000 {
+        return samples.to_vec();
+    }
     let ratio = src_rate as f32 / 16000.0;
     let out_len = (samples.len() as f32 / ratio) as usize;
     (0..out_len)
@@ -79,7 +87,11 @@ pub struct BrowserVoiceSession {
 
 impl BrowserVoiceSession {
     pub fn new(config: WebAudioConfig) -> Self {
-        Self { config, frames_captured: 0, speech_frames: 0 }
+        Self {
+            config,
+            frames_captured: 0,
+            speech_frames: 0,
+        }
     }
 
     /// Process a captured audio buffer
@@ -94,7 +106,9 @@ impl BrowserVoiceSession {
 
     /// Speech ratio (0.0 - 1.0)
     pub fn speech_ratio(&self) -> f32 {
-        if self.frames_captured == 0 { return 0.0; }
+        if self.frames_captured == 0 {
+            return 0.0;
+        }
         self.speech_frames as f32 / self.frames_captured as f32
     }
 }
@@ -106,15 +120,18 @@ mod tests {
     #[test]
     fn test_detect_silence() {
         let silence = vec![0.0f32; 1024];
-        assert_eq!(detect_voice_activity(&silence, -40.0), VoiceActivity::Silent);
+        assert_eq!(
+            detect_voice_activity(&silence, -40.0),
+            VoiceActivity::Silent
+        );
     }
 
     #[test]
     fn test_detect_speech() {
         // High ZCR signal simulating speech
-        let speech: Vec<f32> = (0..1024).map(|i| {
-            if i % 3 == 0 { 0.5 } else { -0.5 }
-        }).collect();
+        let speech: Vec<f32> = (0..1024)
+            .map(|i| if i % 3 == 0 { 0.5 } else { -0.5 })
+            .collect();
         assert_eq!(detect_voice_activity(&speech, -40.0), VoiceActivity::Speech);
     }
 

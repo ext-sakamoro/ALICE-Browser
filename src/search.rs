@@ -23,10 +23,7 @@ impl PageSearch {
     pub fn build(text: &str) -> Self {
         let lower = text.to_lowercase();
         let index = AliceIndex::build(lower.as_bytes(), 4);
-        Self {
-            index,
-            text: lower,
-        }
+        Self { index, text: lower }
     }
 
     /// Count occurrences of query in the page text. O(query_length).

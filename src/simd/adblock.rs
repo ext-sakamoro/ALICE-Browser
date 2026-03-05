@@ -1,14 +1,14 @@
 //! SIMD-Accelerated Ad/Tracker URL Blocking
 //!
-//! Traditional approach: iterate over 80+ domain patterns, calling contains() on each.
-//! Each contains() is O(n*m) worst case — for 80 patterns × 100-char URLs = brutal.
+//! Traditional approach: iterate over 80+ domain patterns, calling `contains()` on each.
+//! Each `contains()` is O(n*m) worst case — for 80 patterns × 100-char URLs = brutal.
 //!
 //! SIMD approach:
 //! 1. Pre-compute a Bloom filter of blocked domain hashes (O(1) lookup)
 //! 2. Use SIMD to hash 8 URL characters simultaneously
 //! 3. Branchless classification of block reason
 //!
-//! This turns O(patterns × url_len) into O(url_len / 8) for the common case.
+//! This turns O(patterns × `url_len`) into `O(url_len` / 8) for the common case.
 
 // SIMD types available for future pattern-matching optimization
 #[allow(unused_imports)]
@@ -38,7 +38,14 @@ pub struct SimdAdBlockEngine {
     pub total_checked: usize,
 }
 
+impl Default for SimdAdBlockEngine {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SimdAdBlockEngine {
+    #[must_use] 
     pub fn new() -> Self {
         let mut engine = Self {
             domain_bloom: [0u8; BLOOM_SIZE_BYTES],
@@ -83,7 +90,7 @@ impl SimdAdBlockEngine {
         if bloom_test(&self.domain_bloom, domain_hash) {
             // Bloom says "maybe" — confirm with exact match
             for blocked in &self.domain_blocks {
-                if domain == *blocked || domain.ends_with(&format!(".{}", blocked)) {
+                if domain == *blocked || domain.ends_with(&format!(".{blocked}")) {
                     self.ads_blocked += 1;
                     return Some(BlockReason::Ad);
                 }
@@ -93,7 +100,7 @@ impl SimdAdBlockEngine {
         // Check tracker domain bloom
         if bloom_test(&self.tracker_bloom, domain_hash) {
             for tracked in &self.tracker_domains {
-                if domain == *tracked || domain.ends_with(&format!(".{}", tracked)) {
+                if domain == *tracked || domain.ends_with(&format!(".{tracked}")) {
                     self.trackers_blocked += 1;
                     return Some(BlockReason::Tracker);
                 }
@@ -132,8 +139,7 @@ impl SimdAdBlockEngine {
                 continue;
             }
 
-            if line.starts_with("||") {
-                let rest = &line[2..];
+            if let Some(rest) = line.strip_prefix("||") {
                 let domain = rest.split('^').next().unwrap_or(rest);
                 let domain = domain.split('$').next().unwrap_or(domain);
                 if !domain.is_empty() {
@@ -164,43 +170,115 @@ impl SimdAdBlockEngine {
 
     fn load_builtin_rules(&mut self) {
         let ad_domains = [
-            "doubleclick.net", "googlesyndication.com", "googleadservices.com",
-            "adnxs.com", "adsrvr.org", "advertising.com", "adform.net",
-            "adroll.com", "outbrain.com", "taboola.com", "criteo.com",
-            "criteo.net", "moatads.com", "media.net", "amazon-adsystem.com",
-            "serving-sys.com", "bidswitch.net", "casalemedia.com",
-            "openx.net", "pubmatic.com", "rubiconproject.com",
-            "smartadserver.com", "turn.com", "yieldmanager.com", "zedo.com",
-            "adcolony.com", "admob.com", "mopub.com",
-            "vungle.com", "applovin.com", "chartboost.com",
-            "inmobi.com", "smaato.net", "tapjoy.com",
-            "pagead2.googlesyndication.com", "adservice.google.com",
-            "ads.google.com", "adsense.google.com",
+            "doubleclick.net",
+            "googlesyndication.com",
+            "googleadservices.com",
+            "adnxs.com",
+            "adsrvr.org",
+            "advertising.com",
+            "adform.net",
+            "adroll.com",
+            "outbrain.com",
+            "taboola.com",
+            "criteo.com",
+            "criteo.net",
+            "moatads.com",
+            "media.net",
+            "amazon-adsystem.com",
+            "serving-sys.com",
+            "bidswitch.net",
+            "casalemedia.com",
+            "openx.net",
+            "pubmatic.com",
+            "rubiconproject.com",
+            "smartadserver.com",
+            "turn.com",
+            "yieldmanager.com",
+            "zedo.com",
+            "adcolony.com",
+            "admob.com",
+            "mopub.com",
+            "vungle.com",
+            "applovin.com",
+            "chartboost.com",
+            "inmobi.com",
+            "smaato.net",
+            "tapjoy.com",
+            "pagead2.googlesyndication.com",
+            "adservice.google.com",
+            "ads.google.com",
+            "adsense.google.com",
         ];
 
         let tracker_domains = [
-            "google-analytics.com", "googletagmanager.com", "googletagservices.com",
-            "facebook.net", "connect.facebook.net", "pixel.facebook.com",
-            "analytics.twitter.com", "bat.bing.com", "hotjar.com",
-            "mixpanel.com", "segment.io", "segment.com", "amplitude.com",
-            "fullstory.com", "mouseflow.com", "luckyorange.com",
-            "crazyegg.com", "optimizely.com", "newrelic.com", "nr-data.net",
-            "sentry.io", "bugsnag.com", "rollbar.com", "quantserve.com",
-            "scorecardresearch.com", "bluekai.com", "krxd.net",
-            "demdex.net", "exelator.com", "eyeota.net", "rlcdn.com",
-            "tapad.com", "sharethrough.com", "mathtag.com",
-            "doubleverify.com", "moat.com", "omtrdc.net",
-            "everesttech.net", "bounceexchange.com",
+            "google-analytics.com",
+            "googletagmanager.com",
+            "googletagservices.com",
+            "facebook.net",
+            "connect.facebook.net",
+            "pixel.facebook.com",
+            "analytics.twitter.com",
+            "bat.bing.com",
+            "hotjar.com",
+            "mixpanel.com",
+            "segment.io",
+            "segment.com",
+            "amplitude.com",
+            "fullstory.com",
+            "mouseflow.com",
+            "luckyorange.com",
+            "crazyegg.com",
+            "optimizely.com",
+            "newrelic.com",
+            "nr-data.net",
+            "sentry.io",
+            "bugsnag.com",
+            "rollbar.com",
+            "quantserve.com",
+            "scorecardresearch.com",
+            "bluekai.com",
+            "krxd.net",
+            "demdex.net",
+            "exelator.com",
+            "eyeota.net",
+            "rlcdn.com",
+            "tapad.com",
+            "sharethrough.com",
+            "mathtag.com",
+            "doubleverify.com",
+            "moat.com",
+            "omtrdc.net",
+            "everesttech.net",
+            "bounceexchange.com",
         ];
 
         let ad_patterns = [
-            "/ads/", "/ad/", "/adserver/", "/adx/", "/adsense/",
-            "/admanager/", "/advert", "/banner/", "/banners/",
-            "/popup/", "/popunder/", "/interstitial",
-            "ads.js", "ad.js", "tracking.js", "tracker.js",
-            "analytics.js", "pixel.gif", "pixel.png", "spacer.gif",
-            "/beacon?", "/collect?", "/pageview?", "/__utm.gif",
-            "/piwik.", "/matomo.",
+            "/ads/",
+            "/ad/",
+            "/adserver/",
+            "/adx/",
+            "/adsense/",
+            "/admanager/",
+            "/advert",
+            "/banner/",
+            "/banners/",
+            "/popup/",
+            "/popunder/",
+            "/interstitial",
+            "ads.js",
+            "ad.js",
+            "tracking.js",
+            "tracker.js",
+            "analytics.js",
+            "pixel.gif",
+            "pixel.png",
+            "spacer.gif",
+            "/beacon?",
+            "/collect?",
+            "/pageview?",
+            "/__utm.gif",
+            "/piwik.",
+            "/matomo.",
         ];
 
         for d in &ad_domains {
@@ -220,11 +298,15 @@ impl SimdAdBlockEngine {
         }
     }
 
+    #[must_use] 
     pub fn rule_count(&self) -> usize {
-        self.domain_blocks.len() + self.tracker_domains.len()
-            + self.substring_blocks.len() + self.exceptions.len()
+        self.domain_blocks.len()
+            + self.tracker_domains.len()
+            + self.substring_blocks.len()
+            + self.exceptions.len()
     }
 
+    #[must_use] 
     pub fn total_blocked(&self) -> usize {
         self.ads_blocked + self.trackers_blocked
     }
@@ -241,10 +323,10 @@ pub enum BlockReason {
 /// FNV-1a hash, unrolled for speed (no branches in the loop body)
 #[inline]
 fn bloom_hash(bytes: &[u8]) -> u64 {
-    let mut h: u64 = 0xcbf29ce484222325;
+    let mut h: u64 = 0xcbf2_9ce4_8422_2325;
     for &b in bytes {
         h ^= b as u64;
-        h = h.wrapping_mul(0x100000001b3);
+        h = h.wrapping_mul(0x0000_0100_0000_01b3);
     }
     h
 }
@@ -252,7 +334,7 @@ fn bloom_hash(bytes: &[u8]) -> u64 {
 /// Set bit in Bloom filter (double hashing: h1 and h2 from single hash)
 #[inline]
 fn bloom_set(filter: &mut [u8; BLOOM_SIZE_BYTES], hash: u64) {
-    let h1 = (hash & 0x7FFF) as usize;  // lower 15 bits
+    let h1 = (hash & 0x7FFF) as usize; // lower 15 bits
     let h2 = ((hash >> 16) & 0x7FFF) as usize; // next 15 bits
     filter[h1 >> 3] |= 1 << (h1 & 7);
     filter[h2 >> 3] |= 1 << (h2 & 7);
@@ -263,8 +345,7 @@ fn bloom_set(filter: &mut [u8; BLOOM_SIZE_BYTES], hash: u64) {
 fn bloom_test(filter: &[u8; BLOOM_SIZE_BYTES], hash: u64) -> bool {
     let h1 = (hash & 0x7FFF) as usize;
     let h2 = ((hash >> 16) & 0x7FFF) as usize;
-    (filter[h1 >> 3] & (1 << (h1 & 7)) != 0)
-        & (filter[h2 >> 3] & (1 << (h2 & 7)) != 0)
+    (filter[h1 >> 3] & (1 << (h1 & 7)) != 0) & (filter[h2 >> 3] & (1 << (h2 & 7)) != 0)
 }
 
 // ─── SIMD String Operations ───────────────────────────────────────
@@ -312,10 +393,8 @@ fn simd_contains(haystack: &[u8], needle: &[u8]) -> bool {
     // This is branch-heavy but the first-byte filter eliminates most iterations
     let mut i = 0;
     while i + len <= haystack.len() {
-        if haystack[i] == first {
-            if &haystack[i..i + len] == needle {
-                return true;
-            }
+        if haystack[i] == first && &haystack[i..i + len] == needle {
+            return true;
         }
         i += 1;
     }
@@ -337,20 +416,50 @@ fn extract_domain_fast(url: &str) -> String {
 
 fn is_tracker_domain(domain: &str) -> bool {
     const TRACKER_KEYWORDS: &[&str] = &[
-        "analytics", "tracker", "tracking", "pixel", "beacon",
-        "telemetry", "metrics", "sentry", "bugsnag", "rollbar",
-        "hotjar", "mixpanel", "segment", "amplitude", "fullstory",
-        "mouseflow", "crazyegg", "optimizely", "newrelic",
-        "quantserve", "scorecard", "bluekai", "facebook.net",
-        "matomo", "piwik", "demdex", "doubleverify", "moat.com",
+        "analytics",
+        "tracker",
+        "tracking",
+        "pixel",
+        "beacon",
+        "telemetry",
+        "metrics",
+        "sentry",
+        "bugsnag",
+        "rollbar",
+        "hotjar",
+        "mixpanel",
+        "segment",
+        "amplitude",
+        "fullstory",
+        "mouseflow",
+        "crazyegg",
+        "optimizely",
+        "newrelic",
+        "quantserve",
+        "scorecard",
+        "bluekai",
+        "facebook.net",
+        "matomo",
+        "piwik",
+        "demdex",
+        "doubleverify",
+        "moat.com",
     ];
     TRACKER_KEYWORDS.iter().any(|kw| domain.contains(kw))
 }
 
 fn classify_pattern_reason(pattern: &str) -> BlockReason {
     const TRACKER_KEYWORDS: &[&str] = &[
-        "analytics", "tracker", "tracking", "pixel", "beacon",
-        "collect", "pageview", "telemetry", "piwik", "matomo",
+        "analytics",
+        "tracker",
+        "tracking",
+        "pixel",
+        "beacon",
+        "collect",
+        "pageview",
+        "telemetry",
+        "piwik",
+        "matomo",
     ];
     if TRACKER_KEYWORDS.iter().any(|kw| pattern.contains(kw)) {
         BlockReason::Tracker
@@ -375,14 +484,21 @@ mod tests {
     #[test]
     fn test_fast_to_lower() {
         assert_eq!(fast_to_lower("HELLO World"), "hello world");
-        assert_eq!(fast_to_lower("https://Example.COM/Path"), "https://example.com/path");
+        assert_eq!(
+            fast_to_lower("https://Example.COM/Path"),
+            "https://example.com/path"
+        );
     }
 
     #[test]
     fn test_simd_adblock() {
         let mut engine = SimdAdBlockEngine::new();
-        assert!(engine.should_block("https://doubleclick.net/ad.js").is_some());
-        assert!(engine.should_block("https://google-analytics.com/collect").is_some());
+        assert!(engine
+            .should_block("https://doubleclick.net/ad.js")
+            .is_some());
+        assert!(engine
+            .should_block("https://google-analytics.com/collect")
+            .is_some());
         assert!(engine.should_block("https://example.com/page").is_none());
     }
 
@@ -395,7 +511,10 @@ mod tests {
 
     #[test]
     fn test_extract_domain() {
-        assert_eq!(extract_domain_fast("https://www.example.com/path"), "www.example.com");
+        assert_eq!(
+            extract_domain_fast("https://www.example.com/path"),
+            "www.example.com"
+        );
         assert_eq!(extract_domain_fast("http://test.org:8080/x"), "test.org");
     }
 }

@@ -4,7 +4,7 @@
 //! shading, and compositing on the GPU. Falls back to CPU if unavailable.
 //!
 //! Architecture:
-//! - SDF union tree is transpiled to WGSL via ALICE-SDF's WgslShader
+//! - SDF union tree is transpiled to WGSL via ALICE-SDF's `WgslShader`
 //! - Per-primitive SDFs are generated inline for color lookup
 //! - A single compute dispatch renders all pixels in parallel
 
@@ -59,6 +59,7 @@ struct CachedPipeline {
 
 impl GpuRenderer {
     /// Try to initialise the GPU renderer. Returns None if no GPU is available.
+    #[must_use] 
     pub fn new() -> Option<Self> {
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             backends: wgpu::Backends::all(),
@@ -82,10 +83,7 @@ impl GpuRenderer {
         ))
         .ok()?;
 
-        log::info!(
-            "GPU renderer initialised: {:?}",
-            adapter.get_info().name
-        );
+        log::info!("GPU renderer initialised: {:?}", adapter.get_info().name);
 
         Some(Self {
             device,
@@ -214,8 +212,8 @@ impl GpuRenderer {
             });
             pass.set_pipeline(&cached.pipeline);
             pass.set_bind_group(0, &bind_group, &[]);
-            let wg_x = (width as u32 + 15) / 16;
-            let wg_y = (height as u32 + 15) / 16;
+            let wg_x = (width as u32).div_ceil(16);
+            let wg_y = (height as u32).div_ceil(16);
             pass.dispatch_workgroups(wg_x, wg_y, 1);
         }
 
@@ -301,13 +299,13 @@ impl GpuRenderer {
                     ],
                 });
 
-        let pipeline_layout =
-            self.device
-                .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                    label: Some("Render PL"),
-                    bind_group_layouts: &[&bind_group_layout],
-                    push_constant_ranges: &[],
-                });
+        let pipeline_layout = self
+            .device
+            .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("Render PL"),
+                bind_group_layouts: &[&bind_group_layout],
+                push_constant_ranges: &[],
+            });
 
         let pipeline = self
             .device
@@ -336,6 +334,7 @@ impl GpuRenderer {
 
 /// Generate the complete WGSL compute shader for a given scene.
 fn generate_shader(scene: &SdfScene) -> String {
+    use std::fmt::Write;
     // 1. Build the union tree and transpile to WGSL
     let nodes: Vec<SdfNode> = scene
         .primitives
@@ -358,9 +357,11 @@ fn generate_shader(scene: &SdfScene) -> String {
         let (_, color) = primitive_to_node(prim);
         prim_fns.push_str(&prim_to_wgsl(prim, i));
         prim_fns.push('\n');
-        let is_unlit = matches!(prim, SdfPrimitive::TextLabel { .. } | SdfPrimitive::Billboard { .. });
+        let is_unlit = matches!(
+            prim,
+            SdfPrimitive::TextLabel { .. } | SdfPrimitive::Billboard { .. }
+        );
         let unlit_val = if is_unlit { 1.0 } else { 0.0 };
-        use std::fmt::Write;
         write!(
             color_body,
             "    d = sdf_prim_{i}(p);\n    if (d < min_d) {{ min_d = d; col = vec3<f32>({:.6}, {:.6}, {:.6}); unlit = {:.1}; }}\n",
@@ -371,7 +372,7 @@ fn generate_shader(scene: &SdfScene) -> String {
 
     // 3. Compose the full shader
     format!(
-        r#"// ALICE Browser — GPU Raymarcher (auto-generated)
+        r"// ALICE Browser — GPU Raymarcher (auto-generated)
 
 struct Uniforms {{
     cam_origin: vec3<f32>,
@@ -525,7 +526,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {{
                        | (u32(b * 255.0) << 16u)
                        | (255u << 24u);
 }}
-"#,
+",
     )
 }
 
@@ -547,8 +548,7 @@ fn primitive_to_node(prim: &SdfPrimitive) -> (SdfNode, [f32; 3]) {
                     .round(*radius)
                     .translate(center[0], center[1], center[2])
             } else {
-                SdfNode::box3d(size[0], size[1], size[2])
-                    .translate(center[0], center[1], center[2])
+                SdfNode::box3d(size[0], size[1], size[2]).translate(center[0], center[1], center[2])
             };
             (node, [color[0], color[1], color[2]])
         }
@@ -557,8 +557,8 @@ fn primitive_to_node(prim: &SdfPrimitive) -> (SdfNode, [f32; 3]) {
             size,
             color,
         } => {
-            let node = SdfNode::box3d(size[0], size[1], 0.04)
-                .translate(center[0], center[1], center[2]);
+            let node =
+                SdfNode::box3d(size[0], size[1], 0.04).translate(center[0], center[1], center[2]);
             (node, [color[0], color[1], color[2]])
         }
         SdfPrimitive::TextLabel {
@@ -569,8 +569,7 @@ fn primitive_to_node(prim: &SdfPrimitive) -> (SdfNode, [f32; 3]) {
         } => {
             let w = text.len().min(40) as f32 * font_size * 0.5;
             let h = *font_size;
-            let node = SdfNode::box3d(w, h, 0.01)
-                .translate(position[0], position[1], position[2]);
+            let node = SdfNode::box3d(w, h, 0.01).translate(position[0], position[1], position[2]);
             (node, [color[0], color[1], color[2]])
         }
         SdfPrimitive::Line {
@@ -589,8 +588,7 @@ fn primitive_to_node(prim: &SdfPrimitive) -> (SdfNode, [f32; 3]) {
             radius,
             color,
         } => {
-            let node = SdfNode::sphere(*radius)
-                .translate(center[0], center[1], center[2]);
+            let node = SdfNode::sphere(*radius).translate(center[0], center[1], center[2]);
             (node, [color[0], color[1], color[2]])
         }
         SdfPrimitive::Billboard {
@@ -599,8 +597,11 @@ fn primitive_to_node(prim: &SdfPrimitive) -> (SdfNode, [f32; 3]) {
             color,
             ..
         } => {
-            let node = SdfNode::box3d(size[0], size[1], 0.005)
-                .translate(position[0], position[1], position[2]);
+            let node = SdfNode::box3d(size[0], size[1], 0.005).translate(
+                position[0],
+                position[1],
+                position[2],
+            );
             (node, [color[0], color[1], color[2]])
         }
         SdfPrimitive::Torus {
@@ -806,11 +807,7 @@ fn prim_to_wgsl(prim: &SdfPrimitive, idx: usize) -> String {
                 r = r,
             )
         }
-        SdfPrimitive::Sphere {
-            center,
-            radius,
-            ..
-        } => {
+        SdfPrimitive::Sphere { center, radius, .. } => {
             format!(
                 "fn sdf_prim_{idx}(p: vec3<f32>) -> f32 {{\
                 \n    return length(p - vec3<f32>({cx:.6}, {cy:.6}, {cz:.6})) - {r:.6};\
@@ -821,11 +818,7 @@ fn prim_to_wgsl(prim: &SdfPrimitive, idx: usize) -> String {
                 r = radius,
             )
         }
-        SdfPrimitive::Billboard {
-            position,
-            size,
-            ..
-        } => {
+        SdfPrimitive::Billboard { position, size, .. } => {
             let hx = size[0] * 0.5;
             let hy = size[1] * 0.5;
             format!(

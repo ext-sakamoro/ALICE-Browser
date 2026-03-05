@@ -79,7 +79,7 @@ pub struct TextParticle {
     /// If true, particle is frozen
     pub grabbed: bool,
     pub id: usize,
-    /// Index into the text_pool for rich metadata
+    /// Index into the `text_pool` for rich metadata
     pub pool_index: usize,
     /// Which layer (Upper / Eye / Lower)
     pub layer: RotundaLayer,
@@ -151,7 +151,7 @@ const CATEGORY_COLORS: &[[f32; 4]] = &[
 ];
 
 fn stream_hash(seed: usize) -> f32 {
-    let x = seed.wrapping_mul(2654435761) ^ seed.wrapping_mul(340573321);
+    let x = seed.wrapping_mul(2_654_435_761) ^ seed.wrapping_mul(340_573_321);
     ((x & 0xFFFF) as f32) / 65535.0
 }
 
@@ -159,11 +159,10 @@ fn stream_hash(seed: usize) -> f32 {
 
 fn classify_layer(meta: &TextMeta) -> RotundaLayer {
     match meta.tag.as_str() {
-        "h1" | "h2" => RotundaLayer::Upper,
-        "h3" | "h4" | "h5" | "h6" => RotundaLayer::Upper,
+        "h1" | "h2" | "h3" | "h4" | "h5" | "h6" => RotundaLayer::Upper,
         "a" | "p" | "li" | "button" => RotundaLayer::Eye,
-        "span" | "em" | "strong" | "b" | "i" | "u" | "small" => RotundaLayer::Lower,
-        "td" | "th" | "dt" | "dd" | "figcaption" | "summary" | "time" => RotundaLayer::Lower,
+        "span" | "em" | "strong" | "b" | "i" | "u" | "small"
+        | "td" | "th" | "dt" | "dd" | "figcaption" | "summary" | "time" => RotundaLayer::Lower,
         _ => {
             if meta.importance >= 0.5 {
                 RotundaLayer::Upper
@@ -179,6 +178,7 @@ fn classify_layer(meta: &TextMeta) -> RotundaLayer {
 // ── Build ──
 
 impl StreamState {
+    #[must_use] 
     pub fn from_layout(root: &LayoutNode) -> Self {
         let mut categories = Vec::new();
         let mut text_pool: Vec<TextMeta> = Vec::new();
@@ -457,7 +457,8 @@ impl StreamState {
     }
 
     /// Get 3D world position on the cylinder wall.
-    /// Billboarding: x = R*cos(angle), z = R*sin(angle), y = y_pos.
+    /// Billboarding: x = R*cos(angle), z = R*sin(angle), y = `y_pos`.
+    #[must_use] 
     pub fn particle_world_pos(p: &TextParticle, time: f32) -> [f32; 3] {
         let phase = p.id as f32 * 1.618;
         let drift_y = (time * 0.2 + phase * 0.7).sin() * 0.08;
@@ -472,6 +473,7 @@ impl StreamState {
     }
 
     /// Lifecycle-based opacity (fade in / visible / fade out).
+    #[must_use] 
     pub fn particle_opacity(p: &TextParticle) -> f32 {
         if p.grabbed {
             return 1.0;
@@ -488,6 +490,7 @@ impl StreamState {
     }
 
     /// Layer-based font size multiplier.
+    #[must_use] 
     pub fn layer_font_scale(layer: RotundaLayer) -> f32 {
         match layer {
             RotundaLayer::Upper => 1.3,  // big headings
@@ -583,6 +586,7 @@ impl StreamState {
     }
 
     /// Get rich info about the currently grabbed particle.
+    #[must_use] 
     pub fn grabbed_info(&self) -> Option<GrabbedInfo<'_>> {
         let idx = self.grabbed_index?;
         let p = self.particles.get(idx)?;
@@ -593,8 +597,7 @@ impl StreamState {
         let cat_name = self
             .categories
             .get(p.category_index)
-            .map(|c| c.name.as_str())
-            .unwrap_or("INFO");
+            .map_or("INFO", |c| c.name.as_str());
         Some(GrabbedInfo {
             particle: p,
             meta,
@@ -602,7 +605,8 @@ impl StreamState {
         })
     }
 
-    /// Return an empty SdfScene with white background.
+    /// Return an empty `SdfScene` with white background.
+    #[must_use] 
     pub fn to_sdf_scene(&self) -> SdfScene {
         SdfScene {
             primitives: Vec::new(),
@@ -630,7 +634,9 @@ fn extract_category_name(node: &LayoutNode) -> String {
         "aside" => "SIDEBAR".into(),
         _ => {
             let t = collect_text_content(node);
-            if !t.is_empty() {
+            if t.is_empty() {
+                node.tag.to_uppercase()
+            } else {
                 t.split_whitespace()
                     .take(2)
                     .collect::<Vec<_>>()
@@ -638,8 +644,6 @@ fn extract_category_name(node: &LayoutNode) -> String {
                     .chars()
                     .take(16)
                     .collect()
-            } else {
-                node.tag.to_uppercase()
             }
         }
     }
@@ -651,8 +655,8 @@ fn collect_rich_texts(node: &LayoutNode, category_index: usize, out: &mut Vec<Te
         "h3" | "h4" | "h5" | "h6" => (0.6, true),
         "a" => (0.5, true),
         "button" | "label" => (0.4, true),
-        "p" | "li" | "span" | "em" | "strong" | "b" | "i" | "u" => (0.2, true),
-        "td" | "th" | "dt" | "dd" | "figcaption" | "summary" | "time" => (0.2, true),
+        "p" | "li" | "span" | "em" | "strong" | "b" | "i" | "u"
+        | "td" | "th" | "dt" | "dd" | "figcaption" | "summary" | "time" => (0.2, true),
         _ => (0.15, false),
     };
 
@@ -675,7 +679,7 @@ fn collect_rich_texts(node: &LayoutNode, category_index: usize, out: &mut Vec<Te
                             &chunk,
                             &full,
                             &node.tag,
-                            &href,
+                            href.as_ref(),
                             category_index,
                             importance,
                         );
@@ -692,7 +696,7 @@ fn collect_rich_texts(node: &LayoutNode, category_index: usize, out: &mut Vec<Te
                         &chunk,
                         &full,
                         &node.tag,
-                        &href,
+                        href.as_ref(),
                         category_index,
                         importance,
                     );
@@ -703,7 +707,7 @@ fn collect_rich_texts(node: &LayoutNode, category_index: usize, out: &mut Vec<Te
                     &full,
                     &full,
                     &node.tag,
-                    &href,
+                    href.as_ref(),
                     category_index,
                     importance,
                 );
@@ -715,7 +719,7 @@ fn collect_rich_texts(node: &LayoutNode, category_index: usize, out: &mut Vec<Te
     if node.tag.is_empty() && !node.text.is_empty() {
         let t = node.text.trim();
         if t.len() > 1 {
-            push_text_meta(out, t, t, "", &None, category_index, 0.15);
+            push_text_meta(out, t, t, "", None, category_index, 0.15);
         }
     }
 
@@ -727,7 +731,7 @@ fn collect_rich_texts(node: &LayoutNode, category_index: usize, out: &mut Vec<Te
                 &direct_text,
                 &direct_text,
                 &node.tag,
-                &node.href,
+                node.href.as_ref(),
                 category_index,
                 0.15,
             );
@@ -744,7 +748,7 @@ fn push_text_meta(
     display_src: &str,
     full_src: &str,
     tag: &str,
-    href: &Option<String>,
+    href: Option<&String>,
     category_index: usize,
     importance: f32,
 ) {
@@ -756,7 +760,7 @@ fn push_text_meta(
         display,
         full_text: full_src.chars().take(300).collect(),
         tag: tag.to_string(),
-        href: href.clone(),
+        href: href.cloned(),
         category_index,
         importance,
     });

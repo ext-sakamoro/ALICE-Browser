@@ -20,7 +20,14 @@ pub struct ImageLoader {
     failed: std::collections::HashSet<String>,
 }
 
+impl Default for ImageLoader {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ImageLoader {
+    #[must_use] 
     pub fn new() -> Self {
         Self {
             pending: HashMap::new(),
@@ -71,21 +78,25 @@ impl ImageLoader {
     }
 
     /// Get a loaded image's data.
+    #[must_use] 
     pub fn get(&self, url: &str) -> Option<&ImageData> {
         self.loaded.get(url)
     }
 
     /// Get all loaded image URLs.
+    #[must_use] 
     pub fn loaded_urls(&self) -> Vec<String> {
         self.loaded.keys().cloned().collect()
     }
 
     /// Number of successfully loaded images.
+    #[must_use] 
     pub fn loaded_count(&self) -> usize {
         self.loaded.len()
     }
 
     /// Number of images still being fetched.
+    #[must_use] 
     pub fn pending_count(&self) -> usize {
         self.pending.len()
     }
@@ -113,7 +124,8 @@ fn fetch_and_decode(url: &str) -> Option<ImageData> {
     let (w, h, pixels) = if w > 800 {
         let ratio = 800.0 / w as f32;
         let new_h = (h as f32 * ratio) as u32;
-        let resized = image::imageops::resize(&rgba, 800, new_h, image::imageops::FilterType::Triangle);
+        let resized =
+            image::imageops::resize(&rgba, 800, new_h, image::imageops::FilterType::Triangle);
         let (rw, rh) = resized.dimensions();
         (rw, rh, resized.into_raw())
     } else {

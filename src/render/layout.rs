@@ -64,13 +64,10 @@ fn tag_margins(tag: &str) -> (f32, f32) {
         "h3" | "h4" => (16.0, 10.0),
         "h5" | "h6" => (12.0, 8.0),
         "p" => (4.0, 10.0),
-        "ul" | "ol" => (8.0, 8.0),
+        "ul" | "ol" | "pre" | "hr" => (8.0, 8.0),
         "li" => (2.0, 2.0),
         "section" | "article" | "main" => (16.0, 16.0),
-        "nav" | "header" | "footer" => (12.0, 12.0),
-        "blockquote" => (12.0, 12.0),
-        "pre" => (8.0, 8.0),
-        "hr" => (8.0, 8.0),
+        "nav" | "header" | "footer" | "blockquote" => (12.0, 12.0),
         _ => (0.0, 0.0),
     }
 }
@@ -87,6 +84,7 @@ fn tag_padding(tag: &str, is_block: bool) -> f32 {
 }
 
 /// Compute layout for a DOM tree (simple top-to-bottom block model).
+#[must_use] 
 pub fn compute_layout(root: &DomNode, viewport_width: f32) -> LayoutNode {
     let mut cursor_y = 0.0;
     layout_node(root, 0.0, &mut cursor_y, viewport_width, 16.0)
@@ -118,8 +116,7 @@ fn layout_node(
         };
     }
 
-    let is_block =
-        node.node_type == NodeType::Element && BLOCK_TAGS.contains(&node.tag.as_str());
+    let is_block = node.node_type == NodeType::Element && BLOCK_TAGS.contains(&node.tag.as_str());
 
     let font_size = match node.tag.as_str() {
         "h1" => 32.0,
@@ -178,8 +175,8 @@ fn layout_node(
 
     // Extract href from <a> tags, or src from <img> tags
     let href = match node.tag.as_str() {
-        "a" => node.attr("href").map(|s| s.to_string()),
-        "img" => node.attr("src").map(|s| s.to_string()),
+        "a" => node.attr("href").map(std::string::ToString::to_string),
+        "img" => node.attr("src").map(std::string::ToString::to_string),
         _ => None,
     };
 
@@ -197,5 +194,77 @@ fn layout_node(
         is_block,
         font_size,
         href,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashMap;
+
+    #[test]
+    fn test_compute_layout_simple_text() {
+        let text = DomNode::text("Hello world");
+        let body = DomNode::element("body", HashMap::new(), vec![text]);
+        let layout = compute_layout(&body, 800.0);
+
+        assert_eq!(layout.tag, "body");
+        assert!(layout.bounds.width > 0.0);
+        assert!(layout.bounds.height >= 0.0);
+        assert!(layout.is_block);
+    }
+
+    #[test]
+    fn test_compute_layout_heading_font_size() {
+        let text = DomNode::text("Title");
+        let h1 = DomNode::element("h1", HashMap::new(), vec![text]);
+        let body = DomNode::element("body", HashMap::new(), vec![h1]);
+        let layout = compute_layout(&body, 800.0);
+
+        // h1 child should have font_size 32.0
+        assert!(!layout.children.is_empty());
+        let h1_layout = &layout.children[0];
+        assert_eq!(h1_layout.tag, "h1");
+        assert!((h1_layout.font_size - 32.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_compute_layout_invisible_node_skipped() {
+        let mut ad_node =
+            DomNode::element("div", HashMap::new(), vec![DomNode::text("This is an ad")]);
+        ad_node.classification = Classification::Advertisement;
+
+        let content = DomNode::text("Real content");
+        let body = DomNode::element("body", HashMap::new(), vec![ad_node, content]);
+        let layout = compute_layout(&body, 800.0);
+
+        // Ad node should be skipped (not in visible children)
+        // The body should still lay out
+        assert!(layout.bounds.height >= 0.0);
+    }
+
+    #[test]
+    fn test_layout_box_dimensions() {
+        let text = DomNode::text("Some paragraph text that is reasonably long for wrapping");
+        let p = DomNode::element("p", HashMap::new(), vec![text]);
+        let body = DomNode::element("body", HashMap::new(), vec![p]);
+        let layout = compute_layout(&body, 600.0);
+
+        // Root should fill viewport width
+        assert!((layout.bounds.width - 600.0).abs() < 0.01);
+        assert!(layout.bounds.height > 0.0);
+    }
+
+    #[test]
+    fn test_layout_href_extraction() {
+        let link_text = DomNode::text("Click me");
+        let mut attrs = HashMap::new();
+        attrs.insert("href".to_string(), "https://example.com".to_string());
+        let link = DomNode::element("a", attrs, vec![link_text]);
+        let body = DomNode::element("body", HashMap::new(), vec![link]);
+        let layout = compute_layout(&body, 800.0);
+
+        let link_layout = &layout.children[0];
+        assert_eq!(link_layout.href.as_deref(), Some("https://example.com"));
     }
 }

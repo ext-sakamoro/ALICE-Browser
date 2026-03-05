@@ -31,9 +31,16 @@ pub enum Gesture {
     /// Long press at position → link preview
     LongPress { x: f32, y: f32 },
     /// Swipe with direction and velocity
-    Swipe { direction: SwipeDirection, velocity: f32 },
+    Swipe {
+        direction: SwipeDirection,
+        velocity: f32,
+    },
     /// Pinch zoom with scale factor
-    Pinch { scale: f32, center_x: f32, center_y: f32 },
+    Pinch {
+        scale: f32,
+        center_x: f32,
+        center_y: f32,
+    },
     /// Scroll (drag) with delta
     Scroll { dx: f32, dy: f32 },
     /// No gesture detected yet
@@ -68,7 +75,7 @@ pub struct GestureRecognizer {
     /// Minimum swipe distance in pixels
     swipe_threshold: f32,
     /// Edge zone width for back/forward gestures
-    edge_zone: f32,
+    _edge_zone: f32,
     /// Screen dimensions
     pub screen_width: f32,
     pub screen_height: f32,
@@ -79,6 +86,7 @@ pub struct GestureRecognizer {
 }
 
 impl GestureRecognizer {
+    #[must_use] 
     pub fn new(screen_width: f32, screen_height: f32) -> Self {
         Self {
             touches: Vec::with_capacity(4),
@@ -88,7 +96,7 @@ impl GestureRecognizer {
             long_press_ms: 500,
             double_tap_ms: 300,
             swipe_threshold: 50.0,
-            edge_zone: 30.0,
+            _edge_zone: 30.0,
             screen_width,
             screen_height,
             is_dragging: false,
@@ -104,7 +112,9 @@ impl GestureRecognizer {
     /// Process touch start event
     pub fn touch_start(&mut self, x: f32, y: f32, id: u64) {
         let point = TouchPoint {
-            x, y, id,
+            x,
+            y,
+            id,
             time: Instant::now(),
         };
         self.touches.push(point);
@@ -140,7 +150,11 @@ impl GestureRecognizer {
                         let scale = current_dist / start_dist;
                         let cx = (t0.x + t1.x) * 0.5;
                         let cy = (t0.y + t1.y) * 0.5;
-                        return Gesture::Pinch { scale, center_x: cx, center_y: cy };
+                        return Gesture::Pinch {
+                            scale,
+                            center_x: cx,
+                            center_y: cy,
+                        };
                     }
                 }
             }
@@ -159,9 +173,8 @@ impl GestureRecognizer {
     pub fn touch_end(&mut self, x: f32, y: f32, id: u64) -> Gesture {
         self.touches.retain(|t| t.id != id);
 
-        let start = match self.start_point.take() {
-            Some(s) => s,
-            None => return Gesture::None,
+        let Some(start) = self.start_point.take() else {
+            return Gesture::None;
         };
 
         let duration = start.time.elapsed();
@@ -183,19 +196,9 @@ impl GestureRecognizer {
             let direction = if abs_dx > abs_dy {
                 // Horizontal swipe
                 if dx > 0.0 {
-                    // Swipe right — if started from left edge, it's "back"
-                    if start.x < self.edge_zone {
-                        SwipeDirection::Right // Back gesture
-                    } else {
-                        SwipeDirection::Right
-                    }
+                    SwipeDirection::Right // Back gesture if from left edge, else forward right
                 } else {
-                    // Swipe left — if started from right edge, it's "forward"
-                    if start.x > self.screen_width - self.edge_zone {
-                        SwipeDirection::Left // Forward gesture
-                    } else {
-                        SwipeDirection::Left
-                    }
+                    SwipeDirection::Left // Forward gesture if from right edge, else forward left
                 }
             } else {
                 // Vertical swipe
@@ -206,7 +209,10 @@ impl GestureRecognizer {
                 }
             };
 
-            return Gesture::Swipe { direction, velocity };
+            return Gesture::Swipe {
+                direction,
+                velocity,
+            };
         }
 
         // Tap detection (short touch, no significant movement)
@@ -232,6 +238,7 @@ impl GestureRecognizer {
     }
 
     /// Check for long press (called periodically from UI update loop)
+    #[must_use] 
     pub fn check_long_press(&self) -> Option<(f32, f32)> {
         if self.touches.len() == 1 && !self.is_dragging {
             let touch = &self.touches[0];

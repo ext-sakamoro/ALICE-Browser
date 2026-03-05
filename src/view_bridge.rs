@@ -35,14 +35,28 @@ pub struct SdfUiBatch {
 
 impl SdfUiBatch {
     pub fn new() -> Self {
-        Self { commands: Vec::new(), total_elements: 0 }
+        Self {
+            commands: Vec::new(),
+            total_elements: 0,
+        }
     }
 
     /// Add a rounded rectangle (CSS border-radius equivalent)
-    pub fn add_rounded_rect(&mut self, x: f32, y: f32, w: f32, h: f32, radius: f32, color: [u8; 4]) {
+    pub fn add_rounded_rect(
+        &mut self,
+        x: f32,
+        y: f32,
+        w: f32,
+        h: f32,
+        radius: f32,
+        color: [u8; 4],
+    ) {
         self.commands.push(SdfUiCommand {
             kind: UiElementKind::RoundedRect,
-            x, y, width: w, height: h,
+            x,
+            y,
+            width: w,
+            height: h,
             corner_radius: radius,
             color_rgba: color,
         });
@@ -53,8 +67,10 @@ impl SdfUiBatch {
     pub fn add_circle(&mut self, cx: f32, cy: f32, radius: f32, color: [u8; 4]) {
         self.commands.push(SdfUiCommand {
             kind: UiElementKind::Circle,
-            x: cx - radius, y: cy - radius,
-            width: radius * 2.0, height: radius * 2.0,
+            x: cx - radius,
+            y: cy - radius,
+            width: radius * 2.0,
+            height: radius * 2.0,
             corner_radius: radius,
             color_rgba: color,
         });
@@ -65,7 +81,10 @@ impl SdfUiBatch {
     pub fn add_shadow(&mut self, x: f32, y: f32, w: f32, h: f32, blur: f32, color: [u8; 4]) {
         self.commands.push(SdfUiCommand {
             kind: UiElementKind::Shadow,
-            x, y, width: w, height: h,
+            x,
+            y,
+            width: w,
+            height: h,
             corner_radius: blur,
             color_rgba: color,
         });

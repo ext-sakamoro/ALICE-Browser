@@ -3,8 +3,8 @@
 //! Covers history management (`go_back`, `go_forward`, `navigate`) and the
 //! asynchronous page-fetch lifecycle (`navigate_no_history`, `check_fetch`).
 
-use std::sync::mpsc;
 use eframe::egui;
+use std::sync::mpsc;
 
 use alice_browser::engine::pipeline::BrowserEngine;
 
@@ -127,29 +127,23 @@ impl BrowserApp {
                             self.oz_prefetch_started = true;
                             self.oz_prefetch_buffer.clear();
                             let base_url = self.url_input.clone();
-                            let hrefs =
-                                collect_hrefs_from_dom(&page.dom.root, &base_url, 10);
+                            let hrefs = collect_hrefs_from_dom(&page.dom.root, &base_url, 10);
                             if !hrefs.is_empty() {
                                 let (tx, rx) = mpsc::channel();
                                 self.oz_prefetch_rx = Some(rx);
                                 std::thread::spawn(move || {
-                                    use alice_browser::net::fetch::fetch_url;
                                     use alice_browser::dom::parser::parse_html;
+                                    use alice_browser::net::fetch::fetch_url;
                                     use alice_browser::render::stream::TextMeta;
 
                                     for href in hrefs {
                                         let mut batch: Vec<TextMeta> = Vec::new();
                                         if let Ok(result) = fetch_url(&href) {
-                                            let dom =
-                                                parse_html(&result.html, &result.url);
-                                            extract_prefetch_texts(
-                                                &dom.root, &mut batch, 0,
-                                            );
+                                            let dom = parse_html(&result.html, &result.url);
+                                            extract_prefetch_texts(&dom.root, &mut batch, 0);
                                         }
-                                        if !batch.is_empty() {
-                                            if tx.send(batch).is_err() {
-                                                break;
-                                            }
+                                        if !batch.is_empty() && tx.send(batch).is_err() {
+                                            break;
                                         }
                                     }
                                 });

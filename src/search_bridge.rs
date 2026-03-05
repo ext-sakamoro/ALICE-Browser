@@ -18,7 +18,11 @@ impl DomSearchIndex {
     pub fn build(text: &str) -> Self {
         let text_len = text.len();
         let index = FmIndex::build(text.as_bytes());
-        Self { index, text_len, queries_count: 0 }
+        Self {
+            index,
+            text_len,
+            queries_count: 0,
+        }
     }
 
     /// Count pattern occurrences (O(|pattern|))
@@ -34,14 +38,21 @@ impl DomSearchIndex {
     }
 
     /// Find with surrounding context window
-    pub fn search_with_context(&mut self, pattern: &str, context_bytes: usize) -> Vec<(usize, usize, usize)> {
+    pub fn search_with_context(
+        &mut self,
+        pattern: &str,
+        context_bytes: usize,
+    ) -> Vec<(usize, usize, usize)> {
         self.queries_count += 1;
         let offsets = self.index.locate(pattern.as_bytes());
-        offsets.into_iter().map(|off| {
-            let start = off.saturating_sub(context_bytes);
-            let end = (off + pattern.len() + context_bytes).min(self.text_len);
-            (off, start, end)
-        }).collect()
+        offsets
+            .into_iter()
+            .map(|off| {
+                let start = off.saturating_sub(context_bytes);
+                let end = (off + pattern.len() + context_bytes).min(self.text_len);
+                (off, start, end)
+            })
+            .collect()
     }
 
     pub fn text_len(&self) -> usize {

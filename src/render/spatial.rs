@@ -61,12 +61,30 @@ fn classify_tag(tag: &str, depth: u32) -> SdfElement {
         "nav" | "header" | "footer" => SdfElement::Beam {
             color: [0.75, 0.78, 0.85, 1.0],
         },
-        "h1" => SdfElement::Heading { level: 1, color: [0.95, 0.85, 0.4, 1.0] },
-        "h2" => SdfElement::Heading { level: 2, color: [0.90, 0.82, 0.5, 1.0] },
-        "h3" => SdfElement::Heading { level: 3, color: [0.85, 0.83, 0.6, 1.0] },
-        "h4" => SdfElement::Heading { level: 4, color: [0.85, 0.83, 0.6, 1.0] },
-        "h5" => SdfElement::Heading { level: 5, color: [0.85, 0.83, 0.6, 1.0] },
-        "h6" => SdfElement::Heading { level: 6, color: [0.85, 0.83, 0.6, 1.0] },
+        "h1" => SdfElement::Heading {
+            level: 1,
+            color: [0.95, 0.85, 0.4, 1.0],
+        },
+        "h2" => SdfElement::Heading {
+            level: 2,
+            color: [0.90, 0.82, 0.5, 1.0],
+        },
+        "h3" => SdfElement::Heading {
+            level: 3,
+            color: [0.85, 0.83, 0.6, 1.0],
+        },
+        "h4" => SdfElement::Heading {
+            level: 4,
+            color: [0.85, 0.83, 0.6, 1.0],
+        },
+        "h5" => SdfElement::Heading {
+            level: 5,
+            color: [0.85, 0.83, 0.6, 1.0],
+        },
+        "h6" => SdfElement::Heading {
+            level: 6,
+            color: [0.85, 0.83, 0.6, 1.0],
+        },
         "a" => SdfElement::Portal {
             thickness: 0.15,
             color: [0.10, 0.40, 0.95, 1.0],
@@ -213,7 +231,7 @@ impl SpatialBuilder {
 
             SdfElement::Beam { color } => {
                 if w > 0.1 {
-                    let beam_h = h.min(0.5).max(0.08);
+                    let beam_h = h.clamp(0.08, 0.5);
                     self.primitives.push(SdfPrimitive::RoundedBox {
                         center: [cx, beam_h / 2.0 + 0.01, z_base + z_forward],
                         size: [w, beam_h, 0.08],
@@ -243,7 +261,7 @@ impl SpatialBuilder {
             SdfElement::Portal { thickness, color } => {
                 let text = collect_text(node);
                 if !text.is_empty() {
-                    let portal_w = w.min(1.2).max(0.1);
+                    let portal_w = w.clamp(0.1, 1.2);
                     let portal_h = (node.font_size * s * 1.5).max(0.06);
                     self.primitives.push(SdfPrimitive::RoundedBox {
                         center: [cx, portal_h / 2.0 + 0.02, z_base + z_forward + 0.32],
@@ -256,8 +274,8 @@ impl SpatialBuilder {
             }
 
             SdfElement::Button { thickness, color } => {
-                let btn_w = w.min(0.8).max(0.08);
-                let btn_h = h.min(0.3).max(0.06);
+                let btn_w = w.clamp(0.08, 0.8);
+                let btn_h = h.clamp(0.06, 0.3);
                 self.primitives.push(SdfPrimitive::RoundedBox {
                     center: [cx, btn_h / 2.0 + 0.02, z_base + z_forward + 0.25],
                     size: [btn_w, btn_h, *thickness],
@@ -270,7 +288,7 @@ impl SpatialBuilder {
             SdfElement::Panel { color } => {
                 let text = collect_text(node);
                 if !text.is_empty() {
-                    let panel_h = h.min(1.0).max(0.04);
+                    let panel_h = h.clamp(0.04, 1.0);
                     let panel_w = w.min(2.5);
                     self.primitives.push(SdfPrimitive::RoundedBox {
                         center: [cx, panel_h / 2.0 + 0.01, z_base + z_forward + 0.03],
@@ -283,8 +301,8 @@ impl SpatialBuilder {
             }
 
             SdfElement::Picture => {
-                let img_w = w.min(1.5).max(0.1);
-                let img_h = h.min(1.0).max(0.1);
+                let img_w = w.clamp(0.1, 1.5);
+                let img_h = h.clamp(0.1, 1.0);
                 // Frame
                 self.primitives.push(SdfPrimitive::RoundedBox {
                     center: [cx, img_h / 2.0 + 0.02, z_base + z_forward + 0.06],
@@ -314,8 +332,8 @@ impl SpatialBuilder {
 
             SdfElement::Text { color } => {
                 if !node.text.is_empty() {
-                    let panel_h = h.min(0.5).max(0.03);
-                    let panel_w = w.min(2.0).max(0.05);
+                    let panel_h = h.clamp(0.03, 0.5);
+                    let panel_w = w.clamp(0.05, 2.0);
                     self.primitives.push(SdfPrimitive::RoundedBox {
                         center: [cx, panel_h / 2.0 + 0.01, z_base + z_forward + 0.02],
                         size: [panel_w, panel_h, 0.01],
@@ -326,12 +344,7 @@ impl SpatialBuilder {
                 true // leaf (bare text)
             }
 
-            SdfElement::List => {
-                // Non-corridor list: no visual of its own, just recurse
-                false
-            }
-
-            SdfElement::Invisible => false,
+            SdfElement::List | SdfElement::Invisible => false,
         }
     }
 
@@ -369,7 +382,7 @@ impl SpatialBuilder {
         for (i, item) in items.iter().enumerate() {
             let item_z = z_base + z_forward - (i as f32 * spacing);
             let ib = &item.bounds;
-            let item_h = (ib.height * s).max(0.04).min(0.4);
+            let item_h = (ib.height * s).clamp(0.04, 0.4);
             let item_w = corridor_w * 0.9;
 
             // Card panel
@@ -420,11 +433,7 @@ fn detect_feed_pattern<'a>(
 
     // ── Mode 1: explicit <ul>/<ol> ──
     if tag == "ul" || tag == "ol" {
-        let li_items: Vec<&LayoutNode> = node
-            .children
-            .iter()
-            .filter(|c| c.tag == "li")
-            .collect();
+        let li_items: Vec<&LayoutNode> = node.children.iter().filter(|c| c.tag == "li").collect();
         if li_items.len() >= min_items {
             return Some(li_items);
         }
@@ -438,7 +447,10 @@ fn detect_feed_pattern<'a>(
             if child.tag.is_empty() || child.bounds.height <= 0.0 {
                 continue;
             }
-            if let Some(entry) = tag_counts.iter_mut().find(|(t, _)| *t == child.tag.as_str()) {
+            if let Some(entry) = tag_counts
+                .iter_mut()
+                .find(|(t, _)| *t == child.tag.as_str())
+            {
                 entry.1.push(child);
             } else {
                 tag_counts.push((child.tag.as_str(), vec![child]));
@@ -461,8 +473,8 @@ fn detect_feed_pattern<'a>(
 
                     // Verify width: each item spans ≥60% of parent
                     let parent_w = node.bounds.width;
-                    let wide_enough = parent_w > 0.0
-                        && group.iter().all(|n| n.bounds.width >= parent_w * 0.6);
+                    let wide_enough =
+                        parent_w > 0.0 && group.iter().all(|n| n.bounds.width >= parent_w * 0.6);
 
                     if similar && wide_enough {
                         return Some(group);
@@ -480,6 +492,7 @@ fn detect_feed_pattern<'a>(
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 /// Convert a 2D layout into a 3D spatial scene
+#[must_use] 
 pub fn layout_to_spatial(root: &LayoutNode, config: &SpatialConfig) -> SdfScene {
     let builder = SpatialBuilder::new(config.clone());
     builder.build(root)
@@ -533,23 +546,29 @@ struct OzPalette;
 
 impl OzPalette {
     /// Sun: pure glowing white
-    fn sun() -> [f32; 4] { [1.0, 1.0, 0.98, 1.0] }
+    fn sun() -> [f32; 4] {
+        [1.0, 1.0, 0.98, 1.0]
+    }
     /// Orbit ring: faint cyan-white
-    fn ring() -> [f32; 4] { [0.70, 0.90, 1.0, 0.3] }
+    fn ring() -> [f32; 4] {
+        [0.70, 0.90, 1.0, 0.3]
+    }
     /// Connector lines: subtle white
-    fn connector() -> [f32; 4] { [0.75, 0.80, 0.90, 0.35] }
+    fn connector() -> [f32; 4] {
+        [0.75, 0.80, 0.90, 0.35]
+    }
 
     /// Planet color — saturated pop colors (OZ-style)
     fn planet(index: usize) -> [f32; 4] {
         const COLORS: &[[f32; 4]] = &[
-            [0.0, 0.85, 1.0, 1.0],  // Cyan
-            [1.0, 0.0, 0.65, 1.0],  // Magenta
-            [1.0, 0.95, 0.0, 1.0],  // Yellow
-            [0.0, 1.0, 0.5, 1.0],   // Spring Green
-            [0.55, 0.0, 1.0, 1.0],  // Violet
-            [1.0, 0.45, 0.0, 1.0],  // Vivid Orange
-            [0.0, 0.55, 1.0, 1.0],  // Azure
-            [1.0, 0.0, 0.35, 1.0],  // Rose
+            [0.0, 0.85, 1.0, 1.0], // Cyan
+            [1.0, 0.0, 0.65, 1.0], // Magenta
+            [1.0, 0.95, 0.0, 1.0], // Yellow
+            [0.0, 1.0, 0.5, 1.0],  // Spring Green
+            [0.55, 0.0, 1.0, 1.0], // Violet
+            [1.0, 0.45, 0.0, 1.0], // Vivid Orange
+            [0.0, 0.55, 1.0, 1.0], // Azure
+            [1.0, 0.0, 0.35, 1.0], // Rose
         ];
         COLORS[index % COLORS.len()]
     }
@@ -579,7 +598,7 @@ impl OzPalette {
 
 /// Deterministic hash for orbit inclination
 fn oz_hash(seed: usize) -> f32 {
-    let x = seed.wrapping_mul(2654435761) ^ seed.wrapping_mul(340573321);
+    let x = seed.wrapping_mul(2_654_435_761) ^ seed.wrapping_mul(340_573_321);
     ((x & 0xFFFF) as f32) / 65535.0
 }
 
@@ -606,10 +625,8 @@ pub struct OzBuildResult {
 ///
 /// Structure (planets, orbits, satellites) and Information (headlines on outer ring)
 /// are completely separated. Planets are pure colored glass — no text labels.
-pub fn build_oz_system(
-    root: &LayoutNode,
-    config: &OzConfig,
-) -> OzBuildResult {
+#[must_use] 
+pub fn build_oz_system(root: &LayoutNode, config: &OzConfig) -> OzBuildResult {
     let mut primitives = Vec::new();
     let mut anim = OzAnimState::new();
     let mut headline_map: Vec<OzHeadlineEntry> = Vec::new();
@@ -640,7 +657,7 @@ pub fn build_oz_system(
 
     // Collect all headlines per planet for the ticker ring
     let mut all_headlines: Vec<(usize, String)> = Vec::new(); // (planet_index, text)
-    // Store planet primitive indices for link lines
+                                                              // Store planet primitive indices for link lines
     let mut planet_prim_indices: Vec<usize> = Vec::new();
 
     for (pi, planet_node) in planets.iter().enumerate() {
@@ -701,7 +718,9 @@ pub fn build_oz_system(
             parent_center: [0.0, 0.0, 0.0],
             angle_offset: angle,
             inclination,
-            kind: AnimKind::Connector { child_index: planet_idx },
+            kind: AnimKind::Connector {
+                child_index: planet_idx,
+            },
         });
 
         // Satellites (depth 2+): clean spheres only, no text
@@ -721,7 +740,8 @@ pub fn build_oz_system(
     }
 
     // ── News Ticker Ring: outer Data Ring ──
-    let outermost_orbit = config.orbit_base + (planet_count.max(1) - 1) as f32 * config.orbit_spread;
+    let outermost_orbit =
+        config.orbit_base + (planet_count.max(1) - 1) as f32 * config.orbit_spread;
     let data_ring_radius = outermost_orbit + config.orbit_spread * 1.5 + 2.0;
 
     // Data Ring Torus (visible ring)
@@ -729,7 +749,7 @@ pub fn build_oz_system(
         center: [0.0, 0.0, 0.0],
         major_radius: data_ring_radius,
         minor_radius: config.ring_thickness * 1.5,
-        axis: [0.0, 1.0, 0.0], // Flat horizontal ring
+        axis: [0.0, 1.0, 0.0],        // Flat horizontal ring
         color: [0.3, 0.6, 1.0, 0.25], // Blue glow
     });
     anim.push(OzAnimMeta {
@@ -766,7 +786,9 @@ pub fn build_oz_system(
             parent_center: [0.0, 0.0, 0.0],
             angle_offset: base_angle,
             inclination: 0.0,
-            kind: AnimKind::Ticker { ring_radius: data_ring_radius },
+            kind: AnimKind::Ticker {
+                ring_radius: data_ring_radius,
+            },
         });
 
         // Record headline → planet mapping for Link Lines
@@ -789,6 +811,7 @@ pub fn build_oz_system(
 }
 
 /// Recursively emit satellite nodes — clean spheres only, no text.
+#[allow(clippy::too_many_arguments)]
 fn emit_oz_children_clean(
     out: &mut Vec<SdfPrimitive>,
     anim: &mut OzAnimState,
@@ -890,7 +913,9 @@ fn emit_oz_children_clean(
             parent_center,
             angle_offset: angle,
             inclination: sub_incl,
-            kind: AnimKind::Connector { child_index: body_idx },
+            kind: AnimKind::Connector {
+                child_index: body_idx,
+            },
         });
 
         // Recurse (no text)
@@ -939,10 +964,7 @@ fn _extract_label(node: &LayoutNode) -> String {
 fn _extract_oz_category(node: &LayoutNode) -> String {
     // Check for heading children (h1-h6)
     for child in &node.children {
-        if matches!(
-            child.tag.as_str(),
-            "h1" | "h2" | "h3" | "h4" | "h5" | "h6"
-        ) {
+        if matches!(child.tag.as_str(), "h1" | "h2" | "h3" | "h4" | "h5" | "h6") {
             let t = collect_text(child);
             if !t.is_empty() {
                 return t.chars().take(16).collect();
@@ -982,10 +1004,7 @@ fn _extract_oz_category(node: &LayoutNode) -> String {
 /// Returns the first heading or first few words of text content.
 fn extract_headline(node: &LayoutNode) -> String {
     // Heading nodes themselves
-    if matches!(
-        node.tag.as_str(),
-        "h1" | "h2" | "h3" | "h4" | "h5" | "h6"
-    ) {
+    if matches!(node.tag.as_str(), "h1" | "h2" | "h3" | "h4" | "h5" | "h6") {
         let t = collect_text(node);
         if !t.is_empty() {
             return t.chars().take(24).collect();
@@ -993,10 +1012,7 @@ fn extract_headline(node: &LayoutNode) -> String {
     }
     // Check for heading children
     for child in &node.children {
-        if matches!(
-            child.tag.as_str(),
-            "h1" | "h2" | "h3" | "h4" | "h5" | "h6"
-        ) {
+        if matches!(child.tag.as_str(), "h1" | "h2" | "h3" | "h4" | "h5" | "h6") {
             let t = collect_text(child);
             if !t.is_empty() {
                 return t.chars().take(24).collect();

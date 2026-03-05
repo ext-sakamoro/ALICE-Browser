@@ -3,8 +3,8 @@
 //! Draws the address bar, back/forward buttons, render-mode selector,
 //! dark-mode toggle, and the optional in-page search field.
 
-use eframe::egui;
 use alice_browser::render::RenderMode;
+use eframe::egui;
 
 use super::BrowserApp;
 
@@ -64,16 +64,8 @@ impl BrowserApp {
                 .show_ui(ui, |ui| {
                     ui.selectable_value(&mut self.render_mode, RenderMode::Flat, "2D Flat");
                     ui.selectable_value(&mut self.render_mode, RenderMode::Sdf2D, "SDF 2D");
-                    ui.selectable_value(
-                        &mut self.render_mode,
-                        RenderMode::Spatial3D,
-                        "3D Spatial",
-                    );
-                    ui.selectable_value(
-                        &mut self.render_mode,
-                        RenderMode::OzMode,
-                        "OZ Orbital",
-                    );
+                    ui.selectable_value(&mut self.render_mode, RenderMode::Spatial3D, "3D Spatial");
+                    ui.selectable_value(&mut self.render_mode, RenderMode::OzMode, "OZ Orbital");
                 });
 
             // Invalidate spatial scene when switching render modes
@@ -90,7 +82,11 @@ impl BrowserApp {
             ui.toggle_value(&mut self.show_stats, "Stats");
 
             // Dark mode toggle
-            let dark_label = if self.dark_mode { "\u{263E}" } else { "\u{2600}" };
+            let dark_label = if self.dark_mode {
+                "\u{263E}"
+            } else {
+                "\u{2600}"
+            };
             if ui.button(dark_label).clicked() {
                 self.dark_mode = !self.dark_mode;
             }

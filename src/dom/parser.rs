@@ -5,7 +5,8 @@ use std::collections::HashMap;
 /// Tags whose children should be stripped (invisible/script content)
 const SKIP_CHILDREN: &[&str] = &["script", "style", "noscript", "svg"];
 
-/// Parse raw HTML string into an ALICE DomTree
+/// Parse raw HTML string into an ALICE `DomTree`
+#[must_use] 
 pub fn parse_html(html: &str, url: &str) -> DomTree {
     let document = Html::parse_document(html);
 

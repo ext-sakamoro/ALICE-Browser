@@ -1,6 +1,6 @@
 //! SDF Renderer for ALICE Browser — powered by ALICE-SDF engine.
 //!
-//! Converts SdfScene primitives into alice_sdf::SdfNode trees and renders
+//! Converts `SdfScene` primitives into `alice_sdf::SdfNode` trees and renders
 //! via sphere-tracing with compiled SIMD evaluation + rayon parallel rows.
 
 use alice_sdf::prelude::*;
@@ -38,13 +38,13 @@ impl Default for CameraParams {
 
 /// A scene compiled for fast rendering: SIMD bytecode + per-primitive color map.
 struct CompiledScene {
-    /// Individual SdfNodes per primitive (for color lookup on hit)
+    /// Individual `SdfNodes` per primitive (for color lookup on hit)
     nodes: Vec<SdfNode>,
     /// Colors per primitive [r, g, b]
     colors: Vec<[f32; 3]>,
     /// Per-primitive unlit flag (true = TextLabel/Billboard, skip toon shading)
     unlit: Vec<bool>,
-    /// Full scene union as a single SdfNode (for normals / shadows)
+    /// Full scene union as a single `SdfNode` (for normals / shadows)
     union_tree: SdfNode,
     /// Compiled bytecode of the union tree (for fast SIMD raymarching)
     compiled: CompiledSdf,
@@ -52,7 +52,7 @@ struct CompiledScene {
     background: [f32; 4],
 }
 
-/// Convert an SdfPrimitive to an alice_sdf::SdfNode + color.
+/// Convert an `SdfPrimitive` to an `alice_sdf::SdfNode` + color.
 fn primitive_to_node(prim: &SdfPrimitive) -> (SdfNode, [f32; 3]) {
     match prim {
         SdfPrimitive::RoundedBox {
@@ -70,8 +70,7 @@ fn primitive_to_node(prim: &SdfPrimitive) -> (SdfNode, [f32; 3]) {
                     .round(*radius)
                     .translate(center[0], center[1], center[2])
             } else {
-                SdfNode::box3d(size[0], size[1], size[2])
-                    .translate(center[0], center[1], center[2])
+                SdfNode::box3d(size[0], size[1], size[2]).translate(center[0], center[1], center[2])
             };
             (node, [color[0], color[1], color[2]])
         }
@@ -80,8 +79,8 @@ fn primitive_to_node(prim: &SdfPrimitive) -> (SdfNode, [f32; 3]) {
             size,
             color,
         } => {
-            let node = SdfNode::box3d(size[0], size[1], 0.04)
-                .translate(center[0], center[1], center[2]);
+            let node =
+                SdfNode::box3d(size[0], size[1], 0.04).translate(center[0], center[1], center[2]);
             (node, [color[0], color[1], color[2]])
         }
         SdfPrimitive::TextLabel {
@@ -92,8 +91,7 @@ fn primitive_to_node(prim: &SdfPrimitive) -> (SdfNode, [f32; 3]) {
         } => {
             let w = text.len().min(40) as f32 * font_size * 0.5;
             let h = *font_size;
-            let node = SdfNode::box3d(w, h, 0.01)
-                .translate(position[0], position[1], position[2]);
+            let node = SdfNode::box3d(w, h, 0.01).translate(position[0], position[1], position[2]);
             (node, [color[0], color[1], color[2]])
         }
         SdfPrimitive::Line {
@@ -112,8 +110,7 @@ fn primitive_to_node(prim: &SdfPrimitive) -> (SdfNode, [f32; 3]) {
             radius,
             color,
         } => {
-            let node = SdfNode::sphere(*radius)
-                .translate(center[0], center[1], center[2]);
+            let node = SdfNode::sphere(*radius).translate(center[0], center[1], center[2]);
             (node, [color[0], color[1], color[2]])
         }
         SdfPrimitive::Billboard {
@@ -123,8 +120,11 @@ fn primitive_to_node(prim: &SdfPrimitive) -> (SdfNode, [f32; 3]) {
             ..
         } => {
             // Billboard rendered as a thin box (camera-facing handled at scene level)
-            let node = SdfNode::box3d(size[0], size[1], 0.005)
-                .translate(position[0], position[1], position[2]);
+            let node = SdfNode::box3d(size[0], size[1], 0.005).translate(
+                position[0],
+                position[1],
+                position[2],
+            );
             (node, [color[0], color[1], color[2]])
         }
         SdfPrimitive::Torus {
@@ -141,7 +141,7 @@ fn primitive_to_node(prim: &SdfPrimitive) -> (SdfNode, [f32; 3]) {
     }
 }
 
-/// Build a compiled scene from an SdfScene.
+/// Build a compiled scene from an `SdfScene`.
 fn compile_scene(scene: &SdfScene) -> Option<CompiledScene> {
     if scene.primitives.is_empty() {
         return None;
@@ -155,7 +155,10 @@ fn compile_scene(scene: &SdfScene) -> Option<CompiledScene> {
         let (node, color) = primitive_to_node(prim);
         nodes.push(node);
         colors.push(color);
-        unlit.push(matches!(prim, SdfPrimitive::TextLabel { .. } | SdfPrimitive::Billboard { .. }));
+        unlit.push(matches!(
+            prim,
+            SdfPrimitive::TextLabel { .. } | SdfPrimitive::Billboard { .. }
+        ));
     }
 
     // Build balanced union tree for better traversal
@@ -187,7 +190,7 @@ fn build_balanced_union(nodes: &[SdfNode]) -> SdfNode {
     }
 }
 
-/// Find the closest primitive color at a point. Returns (color, is_unlit).
+/// Find the closest primitive color at a point. Returns (color, `is_unlit`).
 fn closest_color(p: Vec3, scene: &CompiledScene) -> ([f32; 3], bool) {
     let mut min_d = f32::MAX;
     let mut col = [0.0f32; 3];
@@ -327,6 +330,7 @@ fn sky_color(dir: Vec3, bg: [f32; 4]) -> [f32; 3] {
 // ── Public rendering API ──
 
 /// Render an SDF scene with interactive camera parameters.
+#[must_use] 
 pub fn render_sdf_interactive(
     scene: &SdfScene,
     width: usize,
@@ -350,6 +354,7 @@ pub fn render_sdf_interactive(
 }
 
 /// Render an SDF scene to an RGBA pixel buffer (auto-framing).
+#[must_use] 
 pub fn render_sdf_image(
     scene: &SdfScene,
     width: usize,
@@ -377,6 +382,7 @@ pub fn render_sdf_image(
 }
 
 /// Compute initial camera params that auto-frame the scene.
+#[must_use] 
 pub fn auto_camera(scene: &SdfScene) -> CameraParams {
     let (mn, mx) = scene_bounds(scene);
     let center = (mn + mx) * 0.5;
@@ -407,8 +413,8 @@ fn render_scene(
     let max_march_dist = max_extent * 5.0;
 
     let light_dir = Vec3::new(0.5, 0.8, 0.3).normalize();
-    let light_col = Vec3::new(1.0, 0.98, 0.95);
-    let ambient = Vec3::new(0.15, 0.17, 0.22);
+    let _light_col = Vec3::new(1.0, 0.98, 0.95);
+    let _ambient = Vec3::new(0.15, 0.17, 0.22);
 
     let aspect = width as f32 / height as f32;
 
@@ -574,8 +580,14 @@ mod tests {
             background_color: [0.5, 0.7, 0.9, 1.0],
         };
         let cam = auto_camera(&scene);
-        assert!(cam.distance > 0.5, "Camera should be at reasonable distance");
-        assert!((cam.target[0] - 1.0).abs() < 0.5, "Target should be near scene center");
+        assert!(
+            cam.distance > 0.5,
+            "Camera should be at reasonable distance"
+        );
+        assert!(
+            (cam.target[0] - 1.0).abs() < 0.5,
+            "Target should be near scene center"
+        );
     }
 
     #[test]

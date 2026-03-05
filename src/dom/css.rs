@@ -13,6 +13,7 @@ pub struct StyleProps {
 }
 
 /// Parse an inline `style="..."` attribute value.
+#[must_use] 
 pub fn parse_inline_style(style: &str) -> StyleProps {
     let mut props = StyleProps::default();
     for decl in style.split(';') {
@@ -34,6 +35,7 @@ pub fn parse_inline_style(style: &str) -> StyleProps {
 }
 
 /// Parse a CSS color value into [r, g, b, a] (0.0–1.0).
+#[must_use] 
 pub fn parse_css_color(val: &str) -> Option<[f32; 4]> {
     let v = val.trim().to_lowercase();
 
@@ -56,8 +58,7 @@ pub fn parse_css_color(val: &str) -> Option<[f32; 4]> {
     }
 
     // Hex: #rgb, #rrggbb, #rrggbbaa
-    if v.starts_with('#') {
-        let hex = &v[1..];
+    if let Some(hex) = v.strip_prefix('#') {
         return match hex.len() {
             3 => {
                 let r = u8::from_str_radix(&hex[0..1], 16).ok()? * 17;
@@ -76,7 +77,12 @@ pub fn parse_css_color(val: &str) -> Option<[f32; 4]> {
                 let g = u8::from_str_radix(&hex[2..4], 16).ok()?;
                 let b = u8::from_str_radix(&hex[4..6], 16).ok()?;
                 let a = u8::from_str_radix(&hex[6..8], 16).ok()?;
-                Some([r as f32 / 255.0, g as f32 / 255.0, b as f32 / 255.0, a as f32 / 255.0])
+                Some([
+                    r as f32 / 255.0,
+                    g as f32 / 255.0,
+                    b as f32 / 255.0,
+                    a as f32 / 255.0,
+                ])
             }
             _ => None,
         };
@@ -97,7 +103,12 @@ pub fn parse_css_color(val: &str) -> Option<[f32; 4]> {
             let g = nums[1] / 255.0;
             let b = nums[2] / 255.0;
             let a = if nums.len() >= 4 { nums[3] } else { 1.0 };
-            return Some([r.clamp(0.0, 1.0), g.clamp(0.0, 1.0), b.clamp(0.0, 1.0), a.clamp(0.0, 1.0)]);
+            return Some([
+                r.clamp(0.0, 1.0),
+                g.clamp(0.0, 1.0),
+                b.clamp(0.0, 1.0),
+                a.clamp(0.0, 1.0),
+            ]);
         }
     }
 
@@ -107,7 +118,10 @@ pub fn parse_css_color(val: &str) -> Option<[f32; 4]> {
 /// Parse a CSS size value (px or plain number).
 fn parse_css_size(val: &str) -> Option<f32> {
     let v = val.trim().to_lowercase();
-    let num_str = v.trim_end_matches("px").trim_end_matches("em").trim_end_matches("rem");
+    let num_str = v
+        .trim_end_matches("px")
+        .trim_end_matches("em")
+        .trim_end_matches("rem");
     num_str.parse::<f32>().ok()
 }
 
@@ -144,5 +158,49 @@ mod tests {
         assert!(props.color.is_some());
         assert!((props.font_size.unwrap() - 20.0).abs() < 0.01);
         assert!(props.background_color.is_some());
+    }
+
+    #[test]
+    fn parse_transparent() {
+        let c = parse_css_color("transparent").unwrap();
+        assert!((c[3] - 0.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn parse_hex_8digit_alpha() {
+        let c = parse_css_color("#ff000080").unwrap();
+        assert!((c[0] - 1.0).abs() < 0.01);
+        assert!(c[1].abs() < 0.01);
+        assert!(c[2].abs() < 0.01);
+        assert!((c[3] - 0.502).abs() < 0.02); // 128/255 ~ 0.502
+    }
+
+    #[test]
+    fn parse_invalid_returns_none() {
+        assert!(parse_css_color("not-a-color").is_none());
+        assert!(parse_css_color("").is_none());
+        assert!(parse_css_color("#xyz").is_none());
+    }
+
+    #[test]
+    fn parse_rgba_css_color() {
+        let c = parse_css_color("rgba(255, 0, 0, 0.5)").unwrap();
+        assert!((c[0] - 1.0).abs() < 0.01);
+        assert!((c[3] - 0.5).abs() < 0.01);
+    }
+
+    #[test]
+    fn parse_inline_border_radius() {
+        let props = parse_inline_style("border-radius: 8px");
+        assert!((props.border_radius.unwrap() - 8.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn parse_inline_empty() {
+        let props = parse_inline_style("");
+        assert!(props.color.is_none());
+        assert!(props.font_size.is_none());
+        assert!(props.background_color.is_none());
+        assert!(props.border_radius.is_none());
     }
 }

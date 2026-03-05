@@ -70,6 +70,7 @@ pub struct SdfScene {
 }
 
 /// Convert a layout tree to an SDF scene description
+#[must_use] 
 pub fn layout_to_sdf(root: &LayoutNode, scale: f32) -> SdfScene {
     let mut primitives = Vec::new();
     emit_sdf_primitives(root, &mut primitives, scale, 0);
@@ -248,6 +249,7 @@ pub struct PaintElement {
 }
 
 /// Convert a layout tree into paint elements for egui SDF rendering.
+#[must_use] 
 pub fn layout_to_paint(root: &LayoutNode) -> Vec<PaintElement> {
     let mut elements = Vec::new();
     let mut id = 0;
@@ -255,11 +257,7 @@ pub fn layout_to_paint(root: &LayoutNode) -> Vec<PaintElement> {
     elements
 }
 
-fn emit_paint_elements(
-    node: &LayoutNode,
-    out: &mut Vec<PaintElement>,
-    id: &mut usize,
-) {
+fn emit_paint_elements(node: &LayoutNode, out: &mut Vec<PaintElement>, id: &mut usize) {
     let b = &node.bounds;
     if b.height <= 0.0 && node.text.is_empty() && node.children.is_empty() {
         return;
@@ -271,11 +269,16 @@ fn emit_paint_elements(
             if node.classification == Classification::Content && b.height > 10.0 {
                 *id += 1;
                 out.push(PaintElement {
-                    id: *id, kind: PaintKind::Card,
+                    id: *id,
+                    kind: PaintKind::Card,
                     rect: [b.x, b.y, b.width, b.height],
                     color: [1.0, 1.0, 1.0, 1.0],
-                    corner_radius: 8.0, shadow_depth: 3.0,
-                    text: None, font_size: 0.0, href: None, image_url: None,
+                    corner_radius: 8.0,
+                    shadow_depth: 3.0,
+                    text: None,
+                    font_size: 0.0,
+                    href: None,
+                    image_url: None,
                 });
             }
         }
@@ -283,11 +286,16 @@ fn emit_paint_elements(
             if b.height > 5.0 {
                 *id += 1;
                 out.push(PaintElement {
-                    id: *id, kind: PaintKind::Card,
+                    id: *id,
+                    kind: PaintKind::Card,
                     rect: [b.x, b.y, b.width, b.height],
                     color: [0.96, 0.97, 0.98, 1.0],
-                    corner_radius: 4.0, shadow_depth: 1.0,
-                    text: None, font_size: 0.0, href: None, image_url: None,
+                    corner_radius: 4.0,
+                    shadow_depth: 1.0,
+                    text: None,
+                    font_size: 0.0,
+                    href: None,
+                    image_url: None,
                 });
             }
         }
@@ -297,11 +305,16 @@ fn emit_paint_elements(
             if !text.is_empty() {
                 *id += 1;
                 out.push(PaintElement {
-                    id: *id, kind: PaintKind::Heading,
+                    id: *id,
+                    kind: PaintKind::Heading,
                     rect: [b.x, b.y, b.width, b.height],
                     color: [0.1, 0.1, 0.15, 1.0],
-                    corner_radius: 0.0, shadow_depth: 0.0,
-                    text: Some(text), font_size: node.font_size, href: None, image_url: None,
+                    corner_radius: 0.0,
+                    shadow_depth: 0.0,
+                    text: Some(text),
+                    font_size: node.font_size,
+                    href: None,
+                    image_url: None,
                 });
             }
             return; // text already collected
@@ -313,12 +326,16 @@ fn emit_paint_elements(
                 *id += 1;
                 let prefix = if node.tag == "li" { "\u{2022} " } else { "" };
                 out.push(PaintElement {
-                    id: *id, kind: PaintKind::Text,
+                    id: *id,
+                    kind: PaintKind::Text,
                     rect: [b.x, b.y, b.width, b.height],
                     color: [0.15, 0.15, 0.18, 1.0],
-                    corner_radius: 0.0, shadow_depth: 0.0,
-                    text: Some(format!("{}{}", prefix, text)),
-                    font_size: node.font_size, href: None, image_url: None,
+                    corner_radius: 0.0,
+                    shadow_depth: 0.0,
+                    text: Some(format!("{prefix}{text}")),
+                    font_size: node.font_size,
+                    href: None,
+                    image_url: None,
                 });
             }
             return;
@@ -329,12 +346,16 @@ fn emit_paint_elements(
             if !text.is_empty() {
                 *id += 1;
                 out.push(PaintElement {
-                    id: *id, kind: PaintKind::Link,
+                    id: *id,
+                    kind: PaintKind::Link,
                     rect: [b.x, b.y, b.width, b.height],
                     color: [0.0, 0.4, 0.85, 1.0],
-                    corner_radius: 3.0, shadow_depth: 0.0,
-                    text: Some(text), font_size: node.font_size,
-                    href: node.href.clone(), image_url: None,
+                    corner_radius: 3.0,
+                    shadow_depth: 0.0,
+                    text: Some(text),
+                    font_size: node.font_size,
+                    href: node.href.clone(),
+                    image_url: None,
                 });
             }
             return;
@@ -344,12 +365,16 @@ fn emit_paint_elements(
             let text = collect_child_text(node);
             *id += 1;
             out.push(PaintElement {
-                id: *id, kind: PaintKind::Button,
+                id: *id,
+                kind: PaintKind::Button,
                 rect: [b.x, b.y, b.width, b.height.max(32.0)],
                 color: [0.2, 0.5, 0.95, 1.0],
-                corner_radius: 6.0, shadow_depth: 2.0,
+                corner_radius: 6.0,
+                shadow_depth: 2.0,
                 text: if text.is_empty() { None } else { Some(text) },
-                font_size: node.font_size, href: None, image_url: None,
+                font_size: node.font_size,
+                href: None,
+                image_url: None,
             });
             return;
         }
@@ -358,11 +383,16 @@ fn emit_paint_elements(
             *id += 1;
             let img_url = node.href.clone(); // layout stores src in href for img tags
             out.push(PaintElement {
-                id: *id, kind: PaintKind::ImagePlaceholder,
-                rect: [b.x, b.y, b.width.min(400.0), b.height.max(60.0).min(200.0)],
+                id: *id,
+                kind: PaintKind::ImagePlaceholder,
+                rect: [b.x, b.y, b.width.min(400.0), b.height.clamp(60.0, 200.0)],
                 color: [0.92, 0.92, 0.94, 1.0],
-                corner_radius: 4.0, shadow_depth: 1.0,
-                text: None, font_size: 0.0, href: None, image_url: img_url,
+                corner_radius: 4.0,
+                shadow_depth: 1.0,
+                text: None,
+                font_size: 0.0,
+                href: None,
+                image_url: img_url,
             });
             return;
         }
@@ -370,11 +400,16 @@ fn emit_paint_elements(
         "hr" => {
             *id += 1;
             out.push(PaintElement {
-                id: *id, kind: PaintKind::Separator,
+                id: *id,
+                kind: PaintKind::Separator,
                 rect: [b.x, b.y, b.width, 1.0],
                 color: [0.8, 0.8, 0.82, 1.0],
-                corner_radius: 0.0, shadow_depth: 0.0,
-                text: None, font_size: 0.0, href: None, image_url: None,
+                corner_radius: 0.0,
+                shadow_depth: 0.0,
+                text: None,
+                font_size: 0.0,
+                href: None,
+                image_url: None,
             });
             return;
         }
@@ -383,12 +418,16 @@ fn emit_paint_elements(
             if node.tag.is_empty() && !node.text.is_empty() {
                 *id += 1;
                 out.push(PaintElement {
-                    id: *id, kind: PaintKind::Text,
+                    id: *id,
+                    kind: PaintKind::Text,
                     rect: [b.x, b.y, b.width, b.height],
                     color: [0.15, 0.15, 0.18, 1.0],
-                    corner_radius: 0.0, shadow_depth: 0.0,
+                    corner_radius: 0.0,
+                    shadow_depth: 0.0,
                     text: Some(node.text.trim().to_string()),
-                    font_size: node.font_size, href: None, image_url: None,
+                    font_size: node.font_size,
+                    href: None,
+                    image_url: None,
                 });
             }
         }

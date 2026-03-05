@@ -7,14 +7,14 @@
 //! - `toolbar`    — address bar and controls
 //! - `content`    — main viewport rendering (2-D, SDF, OZ)
 
+pub mod content;
 pub mod navigation;
 pub mod toolbar;
-pub mod content;
 
-use std::sync::{mpsc, Arc};
 use eframe::egui;
+use std::sync::{mpsc, Arc};
 
-use alice_browser::engine::pipeline::{PageResult, PageError};
+use alice_browser::engine::pipeline::{PageError, PageResult};
 use alice_browser::net::adblock::{AdBlockEngine, BlockStats};
 use alice_browser::render::RenderMode;
 
@@ -96,11 +96,11 @@ pub struct BrowserApp {
     /// Buffer for prefetched texts (accumulated before OZ mode is active)
     #[cfg(feature = "sdf-render")]
     pub oz_prefetch_buffer: Vec<alice_browser::render::stream::TextMeta>,
-    pub app_start: std::time::Instant,
+    pub _app_start: std::time::Instant,
     #[cfg(feature = "sdf-render")]
     pub last_frame_time: std::time::Instant,
     // Ad blocker
-    pub adblock: Arc<AdBlockEngine>,
+    pub _adblock: Arc<AdBlockEngine>,
     pub block_stats: BlockStats,
 }
 
@@ -120,9 +120,7 @@ impl Default for BrowserApp {
             image_loader: alice_browser::net::image::ImageLoader::new(),
             image_textures: std::collections::HashMap::new(),
             #[cfg(feature = "smart-cache")]
-            page_cache: std::sync::Arc::new(
-                alice_browser::net::cache::CachedFetcher::new(256),
-            ),
+            page_cache: std::sync::Arc::new(alice_browser::net::cache::CachedFetcher::new(256)),
             #[cfg(feature = "search")]
             search_query: String::new(),
             #[cfg(feature = "search")]
@@ -169,10 +167,10 @@ impl Default for BrowserApp {
             oz_prefetch_started: false,
             #[cfg(feature = "sdf-render")]
             oz_prefetch_buffer: Vec::new(),
-            app_start: std::time::Instant::now(),
+            _app_start: std::time::Instant::now(),
             #[cfg(feature = "sdf-render")]
             last_frame_time: std::time::Instant::now(),
-            adblock: Arc::new(AdBlockEngine::new()),
+            _adblock: Arc::new(AdBlockEngine::new()),
             block_stats: BlockStats::new(),
         }
     }

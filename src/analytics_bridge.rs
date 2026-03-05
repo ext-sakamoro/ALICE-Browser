@@ -4,7 +4,7 @@
 //!
 //! Author: Moroya Sakamoto
 
-use alice_analytics::{DDSketch, HyperLogLog, CountMinSketch};
+use alice_analytics::{CountMinSketch, DDSketch, HyperLogLog};
 
 /// Browser telemetry collector
 pub struct BrowserMetrics {
@@ -52,7 +52,9 @@ impl BrowserMetrics {
 
     /// Average page size in bytes
     pub fn avg_page_bytes(&self) -> f64 {
-        if self.page_loads == 0 { return 0.0; }
+        if self.page_loads == 0 {
+            return 0.0;
+        }
         self.total_bytes as f64 / self.page_loads as f64
     }
 }

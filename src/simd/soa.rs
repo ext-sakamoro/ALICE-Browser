@@ -1,28 +1,28 @@
-//! Structure of Arrays (SoA) — SIMD-friendly data layout
+//! Structure of Arrays (`SoA`) — SIMD-friendly data layout
 //!
-//! Instead of AoS: [Node{tag,text_density,link_density,...}, Node{...}, ...]
-//! We use SoA:     tags: [t,t,t,...], text_densities: [d,d,d,...], link_densities: [l,l,l,...]
+//! Instead of `AoS`: [`Node{tag,text_density,link_density`,...}, Node{...}, ...]
+//! We use `SoA`:     tags: [t,t,t,...], `text_densities`: [d,d,d,...], `link_densities`: [l,l,l,...]
 //!
-//! This lets SIMD load 8 text_densities in ONE instruction (sequential memory access),
+//! This lets SIMD load 8 `text_densities` in ONE instruction (sequential memory access),
 //! instead of gathering scattered fields from different cache lines.
 
 use super::{align_up, F32x8, I32x8, SIMD_WIDTH};
 
-/// SoA representation of DOM node features for SIMD batch processing.
+/// `SoA` representation of DOM node features for SIMD batch processing.
 ///
-/// Each Vec stores ONE feature across ALL nodes, aligned to SIMD_WIDTH.
+/// Each Vec stores ONE feature across ALL nodes, aligned to `SIMD_WIDTH`.
 /// Memory layout:
-///   tag_types:      [t0, t1, t2, t3, t4, t5, t6, t7, t8, ...]  ← continuous!
-///   text_densities: [d0, d1, d2, d3, d4, d5, d6, d7, d8, ...]  ← continuous!
+///   `tag_types`:      [t0, t1, t2, t3, t4, t5, t6, t7, t8, ...]  ← continuous!
+///   `text_densities`: [d0, d1, d2, d3, d4, d5, d6, d7, d8, ...]  ← continuous!
 ///
 /// CPU loads 8 consecutive f32s in a single AVX2 vmovaps instruction.
 #[derive(Debug, Clone)]
 pub struct NodeFeaturesSoA {
     /// Tag type encoded as integer (0=div, 1=p, 2=a, 3=script, ...)
     pub tag_types: AlignedVec<i32>,
-    /// Text density: text_len / node_count (higher = more content-rich)
+    /// Text density: `text_len` / `node_count` (higher = more content-rich)
     pub text_densities: AlignedVec<f32>,
-    /// Link density: link_text / total_text (higher = more navigational)
+    /// Link density: `link_text` / `total_text` (higher = more navigational)
     pub link_densities: AlignedVec<f32>,
     /// Child count (normalized by 1/32 for SIMD range)
     pub child_counts: AlignedVec<f32>,
@@ -56,7 +56,8 @@ pub struct NodeFeaturesSoA {
 }
 
 impl NodeFeaturesSoA {
-    /// Create empty SoA with capacity for `cap` nodes (aligned up)
+    /// Create empty `SoA` with capacity for `cap` nodes (aligned up)
+    #[must_use] 
     pub fn with_capacity(cap: usize) -> Self {
         let aligned_cap = align_up(cap);
         Self {
@@ -81,7 +82,7 @@ impl NodeFeaturesSoA {
     }
 
     /// Push a single node's features (called during DOM→SoA flattening)
-    pub fn push(&mut self, features: NodeFeatures) {
+    pub fn push(&mut self, features: &NodeFeatures) {
         self.tag_types.push(features.tag_type);
         self.text_densities.push(features.text_density);
         self.link_densities.push(features.link_density);
@@ -101,7 +102,7 @@ impl NodeFeaturesSoA {
         self.count += 1;
     }
 
-    /// Pad to SIMD_WIDTH boundary with zeros (must call before SIMD processing)
+    /// Pad to `SIMD_WIDTH` boundary with zeros (must call before SIMD processing)
     pub fn pad_to_simd_width(&mut self) {
         let padded = align_up(self.count);
         while self.tag_types.len() < padded {
@@ -126,12 +127,14 @@ impl NodeFeaturesSoA {
 
     /// Number of SIMD batches needed
     #[inline(always)]
+    #[must_use] 
     pub fn batch_count(&self) -> usize {
         align_up(self.count) / SIMD_WIDTH
     }
 
     /// Load a batch of 8 f32 values from a feature array at the given batch index
     #[inline(always)]
+    #[must_use] 
     pub fn load_f32_batch(&self, data: &AlignedVec<f32>, batch: usize) -> F32x8 {
         let offset = batch * 8;
         F32x8::load(&data.as_slice()[offset..])
@@ -139,13 +142,14 @@ impl NodeFeaturesSoA {
 
     /// Load a batch of 8 i32 values
     #[inline(always)]
+    #[must_use] 
     pub fn load_i32_batch(&self, data: &AlignedVec<i32>, batch: usize) -> I32x8 {
         let offset = batch * 8;
         I32x8::load(&data.as_slice()[offset..])
     }
 }
 
-/// Single node's features (AoS format, used only for push)
+/// Single node's features (`AoS` format, used only for push)
 pub struct NodeFeatures {
     pub tag_type: i32,
     pub text_density: f32,
@@ -164,10 +168,10 @@ pub struct NodeFeatures {
     pub attr_count: f32,
 }
 
-/// SoA representation of layout boxes for SIMD batch layout computation.
+/// `SoA` representation of layout boxes for SIMD batch layout computation.
 ///
-/// Instead of Vec<LayoutBox{x,y,w,h}> (AoS, cache-hostile),
-/// we store x[], y[], w[], h[] separately (SoA, SIMD-ready).
+/// Instead of Vec<LayoutBox{x,y,w,h}> (`AoS`, cache-hostile),
+/// we store x[], y[], w[], h[] separately (`SoA`, SIMD-ready).
 #[derive(Debug, Clone)]
 pub struct LayoutBoxesSoA {
     pub xs: AlignedVec<f32>,
@@ -183,6 +187,7 @@ pub struct LayoutBoxesSoA {
 }
 
 impl LayoutBoxesSoA {
+    #[must_use] 
     pub fn with_capacity(cap: usize) -> Self {
         let aligned_cap = align_up(cap);
         Self {
@@ -199,7 +204,19 @@ impl LayoutBoxesSoA {
         }
     }
 
-    pub fn push(&mut self, x: f32, y: f32, w: f32, h: f32, fs: f32, mt: f32, mb: f32, pad: f32, block: bool) {
+    #[allow(clippy::too_many_arguments)]
+    pub fn push(
+        &mut self,
+        x: f32,
+        y: f32,
+        w: f32,
+        h: f32,
+        fs: f32,
+        mt: f32,
+        mb: f32,
+        pad: f32,
+        block: bool,
+    ) {
         self.xs.push(x);
         self.ys.push(y);
         self.widths.push(w);
@@ -240,6 +257,7 @@ pub struct AlignedVec<T: Copy + Default> {
 }
 
 impl<T: Copy + Default> AlignedVec<T> {
+    #[must_use] 
     pub fn with_capacity(cap: usize) -> Self {
         Self {
             data: Vec::with_capacity(cap),
@@ -252,11 +270,19 @@ impl<T: Copy + Default> AlignedVec<T> {
     }
 
     #[inline(always)]
+    #[must_use] 
     pub fn len(&self) -> usize {
         self.data.len()
     }
 
     #[inline(always)]
+    #[must_use] 
+    pub fn is_empty(&self) -> bool {
+        self.data.is_empty()
+    }
+
+    #[inline(always)]
+    #[must_use] 
     pub fn as_slice(&self) -> &[T] {
         &self.data
     }
@@ -275,6 +301,7 @@ impl<T: Copy + Default> Default for AlignedVec<T> {
 
 /// Tag name → integer encoding for SIMD comparison
 #[inline]
+#[must_use] 
 pub fn encode_tag(tag: &str) -> i32 {
     match tag {
         "div" => 0,
@@ -298,7 +325,8 @@ pub fn encode_tag(tag: &str) -> i32 {
     }
 }
 
-/// Convert DomNode tree into SoA representation (flattening)
+/// Convert `DomNode` tree into `SoA` representation (flattening)
+#[must_use] 
 pub fn dom_to_soa(node: &crate::dom::DomNode) -> NodeFeaturesSoA {
     let node_count = node.node_count();
     let mut soa = NodeFeaturesSoA::with_capacity(node_count);
@@ -308,47 +336,87 @@ pub fn dom_to_soa(node: &crate::dom::DomNode) -> NodeFeaturesSoA {
 }
 
 fn flatten_node(node: &crate::dom::DomNode, soa: &mut NodeFeaturesSoA) {
-    let class = node.attr("class").unwrap_or("");
-    let id = node.attr("id").unwrap_or("");
-    let combined = format!("{} {}", class, id).to_lowercase();
-
-    let ad_patterns = [
-        "ad", "ads", "advert", "banner", "sponsor", "promoted",
-        "promo", "adsense", "doubleclick", "taboola", "outbrain",
-    ];
-    let tracker_patterns = [
-        "tracker", "tracking", "analytics", "pixel", "beacon",
-        "telemetry", "cookie-banner", "cookie-consent",
-    ];
-
-    let has_ad = ad_patterns.iter().any(|p| combined.contains(p));
-    let has_tracker = tracker_patterns.iter().any(|p| combined.contains(p));
-    let has_data_ad = node.attributes.keys().any(|k| k.starts_with("data-ad") || k.starts_with("data-tracking"));
-
     // Division exorcism: multiply by reciprocal instead of dividing
     const INV_32: f32 = 1.0 / 32.0;
     const INV_1024: f32 = 1.0 / 1024.0;
     const INV_16: f32 = 1.0 / 16.0;
 
+    let class = node.attr("class").unwrap_or("");
+    let id = node.attr("id").unwrap_or("");
+    let combined = format!("{class} {id}").to_lowercase();
+
+    let ad_patterns = [
+        "ad",
+        "ads",
+        "advert",
+        "banner",
+        "sponsor",
+        "promoted",
+        "promo",
+        "adsense",
+        "doubleclick",
+        "taboola",
+        "outbrain",
+    ];
+    let tracker_patterns = [
+        "tracker",
+        "tracking",
+        "analytics",
+        "pixel",
+        "beacon",
+        "telemetry",
+        "cookie-banner",
+        "cookie-consent",
+    ];
+
+    let has_ad = ad_patterns.iter().any(|p| combined.contains(p));
+    let has_tracker = tracker_patterns.iter().any(|p| combined.contains(p));
+    let has_data_ad = node
+        .attributes
+        .keys()
+        .any(|k| k.starts_with("data-ad") || k.starts_with("data-tracking"));
+
     let features = NodeFeatures {
         tag_type: encode_tag(&node.tag),
         text_density: node.text_density(),
         link_density: node.link_density(),
-        child_count: node.children.len() as f32 * INV_32,     // ÷32 → ×(1/32)
+        child_count: node.children.len() as f32 * INV_32, // ÷32 → ×(1/32)
         has_ad_class: if has_ad { 1.0 } else { 0.0 },
         has_tracker_class: if has_tracker { 1.0 } else { 0.0 },
         has_data_ad: if has_data_ad { 1.0 } else { 0.0 },
-        is_script: if matches!(node.tag.as_str(), "script" | "noscript") { 1.0 } else { 0.0 },
+        is_script: if matches!(node.tag.as_str(), "script" | "noscript") {
+            1.0
+        } else {
+            0.0
+        },
         is_style: if node.tag == "style" { 1.0 } else { 0.0 },
         is_nav: if node.tag == "nav" { 1.0 } else { 0.0 },
-        is_interactive: if matches!(node.tag.as_str(), "button" | "input" | "textarea" | "select" | "form") { 1.0 } else { 0.0 },
-        is_media: if matches!(node.tag.as_str(), "img" | "video" | "audio" | "picture" | "canvas") { 1.0 } else { 0.0 },
-        text_length: node.text.len() as f32 * INV_1024,       // ÷1024 → ×(1/1024)
-        has_href: if node.attr("href").is_some() { 1.0 } else { 0.0 },
-        attr_count: node.attributes.len() as f32 * INV_16,    // ÷16 → ×(1/16)
+        is_interactive: if matches!(
+            node.tag.as_str(),
+            "button" | "input" | "textarea" | "select" | "form"
+        ) {
+            1.0
+        } else {
+            0.0
+        },
+        is_media: if matches!(
+            node.tag.as_str(),
+            "img" | "video" | "audio" | "picture" | "canvas"
+        ) {
+            1.0
+        } else {
+            0.0
+        },
+        text_length: node.text.len() as f32 * INV_1024, // ÷1024 → ×(1/1024)
+        has_href: if node.attr("href").is_some() {
+            1.0
+        } else {
+            0.0
+        },
+        attr_count: node.attributes.len() as f32 * INV_16, // ÷16 → ×(1/16)
     };
 
-    soa.push(features);
+    soa.push(&features);
 
     for child in &node.children {
         flatten_node(child, soa);
@@ -376,5 +444,116 @@ mod tests {
         assert_eq!(v.len(), 16);
         assert!((v.as_slice()[0] - 0.0).abs() < 1e-6);
         assert!((v.as_slice()[15] - 15.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_encode_tag_comprehensive() {
+        assert_eq!(encode_tag("p"), 1);
+        assert_eq!(encode_tag("a"), 2);
+        assert_eq!(encode_tag("noscript"), 3);
+        assert_eq!(encode_tag("style"), 4);
+        assert_eq!(encode_tag("nav"), 5);
+        assert_eq!(encode_tag("header"), 6);
+        assert_eq!(encode_tag("footer"), 7);
+        assert_eq!(encode_tag("button"), 8);
+        assert_eq!(encode_tag("input"), 8);
+        assert_eq!(encode_tag("video"), 9);
+        assert_eq!(encode_tag("iframe"), 10);
+        assert_eq!(encode_tag("h1"), 11);
+        assert_eq!(encode_tag("h3"), 11);
+        assert_eq!(encode_tag("span"), 12);
+        assert_eq!(encode_tag("ul"), 13);
+        assert_eq!(encode_tag("table"), 14);
+        assert_eq!(encode_tag("section"), 15);
+        assert_eq!(encode_tag("article"), 15);
+        assert_eq!(encode_tag(""), 16); // text node
+        assert_eq!(encode_tag("custom"), 17); // unknown
+    }
+
+    #[test]
+    fn test_soa_push_and_pad() {
+        let mut soa = NodeFeaturesSoA::with_capacity(3);
+        for i in 0..3 {
+            soa.push(&NodeFeatures {
+                tag_type: i,
+                text_density: i as f32 * 10.0,
+                link_density: 0.0,
+                child_count: 0.0,
+                has_ad_class: 0.0,
+                has_tracker_class: 0.0,
+                has_data_ad: 0.0,
+                is_script: 0.0,
+                is_style: 0.0,
+                is_nav: 0.0,
+                is_interactive: 0.0,
+                is_media: 0.0,
+                text_length: 0.0,
+                has_href: 0.0,
+                attr_count: 0.0,
+            });
+        }
+        assert_eq!(soa.count, 3);
+        assert_eq!(soa.tag_types.len(), 3);
+
+        soa.pad_to_simd_width();
+        // After padding, length should be aligned to SIMD_WIDTH
+        let aligned = crate::simd::align_up(3);
+        assert_eq!(soa.tag_types.len(), aligned);
+        assert_eq!(soa.text_densities.len(), aligned);
+        assert_eq!(soa.classifications.len(), aligned);
+    }
+
+    #[test]
+    fn test_soa_batch_count() {
+        let mut soa = NodeFeaturesSoA::with_capacity(10);
+        for i in 0..10 {
+            soa.push(&NodeFeatures {
+                tag_type: i,
+                text_density: 0.0,
+                link_density: 0.0,
+                child_count: 0.0,
+                has_ad_class: 0.0,
+                has_tracker_class: 0.0,
+                has_data_ad: 0.0,
+                is_script: 0.0,
+                is_style: 0.0,
+                is_nav: 0.0,
+                is_interactive: 0.0,
+                is_media: 0.0,
+                text_length: 0.0,
+                has_href: 0.0,
+                attr_count: 0.0,
+            });
+        }
+        soa.pad_to_simd_width();
+        assert!(soa.batch_count() >= 1);
+        assert!(soa.batch_count() * crate::simd::SIMD_WIDTH >= soa.count);
+    }
+
+    #[test]
+    fn test_layout_boxes_soa() {
+        let mut lbs = LayoutBoxesSoA::with_capacity(4);
+        lbs.push(0.0, 10.0, 100.0, 20.0, 16.0, 4.0, 4.0, 8.0, true);
+        lbs.push(0.0, 30.0, 100.0, 15.0, 14.0, 0.0, 0.0, 0.0, false);
+        assert_eq!(lbs.count, 2);
+        assert!((lbs.xs.as_slice()[0] - 0.0).abs() < 1e-6);
+        assert!((lbs.ys.as_slice()[1] - 30.0).abs() < 1e-6);
+        assert!((lbs.is_block.as_slice()[0] - 1.0).abs() < 1e-6);
+        assert!((lbs.is_block.as_slice()[1] - 0.0).abs() < 1e-6);
+
+        lbs.pad_to_simd_width();
+        let aligned = crate::simd::align_up(2);
+        assert_eq!(lbs.xs.len(), aligned);
+    }
+
+    #[test]
+    fn test_dom_to_soa() {
+        use std::collections::HashMap;
+        let text = crate::dom::DomNode::text("Hello world");
+        let div = crate::dom::DomNode::element("div", HashMap::new(), vec![text]);
+        let soa = dom_to_soa(&div);
+        assert_eq!(soa.count, 2); // div + text
+        assert_eq!(soa.tag_types.as_slice()[0], encode_tag("div")); // 0
+        assert_eq!(soa.tag_types.as_slice()[1], encode_tag("")); // text node = 16
     }
 }

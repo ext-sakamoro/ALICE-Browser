@@ -9,13 +9,14 @@
 //! - Branchless CSS color parsing
 //! - Branchless DOM filtering
 
-pub mod mask;
 pub mod color;
 pub mod filter;
+pub mod mask;
 
 /// Branchless select: if cond { a } else { b }
 /// Works by computing both and masking.
 #[inline(always)]
+#[must_use] 
 pub fn select_f32(cond: bool, a: f32, b: f32) -> f32 {
     let m = -(cond as i32) as u32; // 0xFFFFFFFF if true, 0x00000000 if false
     let a_bits = a.to_bits();
@@ -25,6 +26,7 @@ pub fn select_f32(cond: bool, a: f32, b: f32) -> f32 {
 
 /// Branchless select for i32
 #[inline(always)]
+#[must_use] 
 pub fn select_i32(cond: bool, a: i32, b: i32) -> i32 {
     let m = -(cond as i32); // -1 if true, 0 if false
     (a & m) | (b & !m)
@@ -32,6 +34,7 @@ pub fn select_i32(cond: bool, a: i32, b: i32) -> i32 {
 
 /// Branchless select for u8
 #[inline(always)]
+#[must_use] 
 pub fn select_u8(cond: bool, a: u8, b: u8) -> u8 {
     let m = (-(cond as i8)) as u8; // 0xFF if true, 0x00 if false
     (a & m) | (b & !m)
@@ -39,44 +42,51 @@ pub fn select_u8(cond: bool, a: u8, b: u8) -> u8 {
 
 /// Branchless min
 #[inline(always)]
+#[must_use] 
 pub fn min_f32(a: f32, b: f32) -> f32 {
     select_f32(a < b, a, b)
 }
 
 /// Branchless max
 #[inline(always)]
+#[must_use] 
 pub fn max_f32(a: f32, b: f32) -> f32 {
     select_f32(a > b, a, b)
 }
 
 /// Branchless clamp
 #[inline(always)]
+#[must_use] 
 pub fn clamp_f32(val: f32, lo: f32, hi: f32) -> f32 {
     max_f32(lo, min_f32(val, hi))
 }
 
 /// Branchless absolute value (no branch, pure bit manipulation)
 #[inline(always)]
+#[must_use] 
 pub fn abs_f32(x: f32) -> f32 {
-    f32::from_bits(x.to_bits() & 0x7FFFFFFF) // clear sign bit
+    f32::from_bits(x.to_bits() & 0x7FFF_FFFF) // clear sign bit
 }
 
 /// Branchless sign: returns -1.0, 0.0, or 1.0
 #[inline(always)]
+#[must_use] 
 pub fn sign_f32(x: f32) -> f32 {
-    let pos = (x > 0.0) as u32 as f32;  // 1.0 if positive
-    let neg = (x < 0.0) as u32 as f32;  // 1.0 if negative
+    let pos = (x > 0.0) as u32 as f32; // 1.0 if positive
+    let neg = (x < 0.0) as u32 as f32; // 1.0 if negative
     pos - neg
 }
 
 /// Branchless step function: 0.0 if x < edge, 1.0 if x >= edge
 #[inline(always)]
+#[must_use] 
 pub fn step_f32(edge: f32, x: f32) -> f32 {
     (x >= edge) as u32 as f32
 }
 
 /// Branchless smoothstep: Hermite interpolation between 0 and 1
 #[inline(always)]
+#[must_use] 
 pub fn smoothstep_f32(edge0: f32, edge1: f32, x: f32) -> f32 {
     let t = clamp_f32((x - edge0) / (edge1 - edge0), 0.0, 1.0);
     // t * t * (3.0 - 2.0 * t) — using FMA-friendly form:
@@ -119,5 +129,50 @@ mod tests {
         assert!((smoothstep_f32(0.0, 1.0, 0.0) - 0.0).abs() < 1e-6);
         assert!((smoothstep_f32(0.0, 1.0, 0.5) - 0.5).abs() < 1e-6);
         assert!((smoothstep_f32(0.0, 1.0, 1.0) - 1.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_select_u8() {
+        assert_eq!(select_u8(true, 100, 200), 100);
+        assert_eq!(select_u8(false, 100, 200), 200);
+        assert_eq!(select_u8(true, 0, 255), 0);
+        assert_eq!(select_u8(false, 0, 255), 255);
+    }
+
+    #[test]
+    fn test_sign_f32() {
+        assert!((sign_f32(5.0) - 1.0).abs() < 1e-6);
+        assert!((sign_f32(-3.0) - (-1.0)).abs() < 1e-6);
+        assert!((sign_f32(0.0) - 0.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_step_f32() {
+        assert!((step_f32(0.5, 0.3) - 0.0).abs() < 1e-6);
+        assert!((step_f32(0.5, 0.5) - 1.0).abs() < 1e-6);
+        assert!((step_f32(0.5, 0.7) - 1.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_min_max_f32() {
+        assert!((min_f32(3.0, 5.0) - 3.0).abs() < 1e-6);
+        assert!((min_f32(5.0, 3.0) - 3.0).abs() < 1e-6);
+        assert!((max_f32(3.0, 5.0) - 5.0).abs() < 1e-6);
+        assert!((max_f32(5.0, 3.0) - 5.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_smoothstep_clamping() {
+        // Values below edge0 should clamp to 0
+        assert!((smoothstep_f32(0.0, 1.0, -1.0) - 0.0).abs() < 1e-6);
+        // Values above edge1 should clamp to 1
+        assert!((smoothstep_f32(0.0, 1.0, 2.0) - 1.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_abs_negative_zero() {
+        // -0.0 should become 0.0
+        let result = abs_f32(-0.0);
+        assert!(result.to_bits() == 0.0f32.to_bits());
     }
 }

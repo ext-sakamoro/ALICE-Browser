@@ -30,12 +30,10 @@ fn score_node(node: &DomNode) -> f32 {
     match node.tag.as_str() {
         "article" | "main" => score += 10.0,
         "section" => score += 5.0,
-        "p" => score += 3.0,
-        "blockquote" | "pre" => score += 3.0,
+        "p" | "blockquote" | "pre" => score += 3.0,
         "div" => score += 1.0,
         "nav" | "aside" => score -= 10.0,
-        "footer" | "header" => score -= 5.0,
-        "form" => score -= 5.0,
+        "footer" | "header" | "form" => score -= 5.0,
         _ => {}
     }
 
@@ -55,7 +53,14 @@ fn score_node(node: &DomNode) -> f32 {
     )
     .to_lowercase();
 
-    for kw in &["content", "article", "post", "entry", "main-text", "body-text"] {
+    for kw in &[
+        "content",
+        "article",
+        "post",
+        "entry",
+        "main-text",
+        "body-text",
+    ] {
         if id_class.contains(kw) {
             score += 8.0;
         }
@@ -158,10 +163,7 @@ mod tests {
         let nav = elem(
             "nav",
             "",
-            vec![
-                elem("a", "Link 1", vec![]),
-                elem("a", "Link 2", vec![]),
-            ],
+            vec![elem("a", "Link 1", vec![]), elem("a", "Link 2", vec![])],
         );
         assert!(score_node(&article) > score_node(&nav));
     }

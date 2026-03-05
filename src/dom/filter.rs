@@ -85,6 +85,7 @@ pub struct SemanticFilter {
 }
 
 impl SemanticFilter {
+    #[must_use] 
     pub fn new() -> Self {
         Self {
             #[cfg(feature = "ml-filter")]
@@ -211,7 +212,7 @@ fn classify_node(node: &DomNode) -> Classification {
     // --- Class/ID pattern matching ---
     let class = node.attr("class").unwrap_or("");
     let id = node.attr("id").unwrap_or("");
-    let combined = format!("{} {}", class, id).to_lowercase();
+    let combined = format!("{class} {id}").to_lowercase();
 
     for pattern in AD_PATTERNS {
         if combined.contains(pattern) {

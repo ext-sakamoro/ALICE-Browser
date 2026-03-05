@@ -21,16 +21,20 @@ impl std::fmt::Display for FetchError {
 }
 
 /// Fetch a URL and return the HTML content (blocking).
+///
+/// # Errors
+///
+/// Returns `FetchError` if the URL is invalid, the connection fails, or the server returns an error.
 pub fn fetch_url(url_str: &str) -> Result<FetchResult, FetchError> {
     // Normalize URL
     let url = if !url_str.starts_with("http://") && !url_str.starts_with("https://") {
-        format!("https://{}", url_str)
+        format!("https://{url_str}")
     } else {
         url_str.to_string()
     };
 
     let parsed = Url::parse(&url).map_err(|e| FetchError {
-        message: format!("Invalid URL: {}", e),
+        message: format!("Invalid URL: {e}"),
     })?;
 
     let client = reqwest::blocking::Client::builder()
@@ -42,7 +46,7 @@ pub fn fetch_url(url_str: &str) -> Result<FetchResult, FetchError> {
         .redirect(reqwest::redirect::Policy::limited(10))
         .build()
         .map_err(|e| FetchError {
-            message: format!("Client error: {}", e),
+            message: format!("Client error: {e}"),
         })?;
 
     let response = client
@@ -54,7 +58,7 @@ pub fn fetch_url(url_str: &str) -> Result<FetchResult, FetchError> {
         .header("Accept-Language", "ja,en-US;q=0.9,en;q=0.8")
         .send()
         .map_err(|e| FetchError {
-            message: format!("Request failed: {}", e),
+            message: format!("Request failed: {e}"),
         })?;
 
     let status = response.status().as_u16();
@@ -68,7 +72,7 @@ pub fn fetch_url(url_str: &str) -> Result<FetchResult, FetchError> {
     let final_url = response.url().to_string();
 
     let html = response.text().map_err(|e| FetchError {
-        message: format!("Failed to read body: {}", e),
+        message: format!("Failed to read body: {e}"),
     })?;
 
     Ok(FetchResult {

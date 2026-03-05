@@ -4,9 +4,9 @@
 //! into semantic categories. Weights are {-1, 0, +1} only — no multiplication,
 //! just add/sub via `ternary_matvec`.
 
-use alice_ml::{TernaryWeight, ternary_matvec};
-use crate::dom::{Classification, DomNode, NodeType};
 use super::{AD_PATTERNS, TRACKER_PATTERNS};
+use crate::dom::{Classification, DomNode, NodeType};
+use alice_ml::{ternary_matvec, TernaryWeight};
 
 const NUM_FEATURES: usize = 16;
 const HIDDEN_SIZE: usize = 32;

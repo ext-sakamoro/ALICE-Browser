@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use crate::dom::parser::parse_html;
 use crate::dom::filter::{FilterStats, SemanticFilter};
+use crate::dom::parser::parse_html;
 use crate::dom::readability::readability_boost;
 use crate::dom::DomTree;
 use crate::net::adblock::AdBlockEngine;
@@ -10,9 +10,9 @@ use crate::render::layout::{compute_layout, LayoutNode};
 use crate::render::sdf_ui::{layout_to_sdf, SdfScene};
 
 // Deep-Fried Rust: SIMD pipeline imports
+use crate::simd::classify::{apply_classifications, classify_batch, prune_ads, SimdFilterStats};
+use crate::simd::layout::{compute_layout_simd, flatten_dom, ComputedBox, FlatNode};
 use crate::simd::soa::dom_to_soa;
-use crate::simd::classify::{classify_batch, apply_classifications, prune_ads, SimdFilterStats};
-use crate::simd::layout::{flatten_dom, compute_layout_simd, FlatNode, ComputedBox};
 
 /// Result of loading and processing a web page
 pub struct PageResult {
@@ -44,7 +44,7 @@ impl std::fmt::Display for PageError {
     }
 }
 
-/// The browser engine pipeline: Fetch → AdBlock → Parse → Filter → Layout → SDF
+/// The browser engine pipeline: Fetch → `AdBlock` → Parse → Filter → Layout → SDF
 pub struct BrowserEngine {
     filter: SemanticFilter,
     viewport_width: f32,
@@ -54,6 +54,7 @@ pub struct BrowserEngine {
 }
 
 impl BrowserEngine {
+    #[must_use] 
     pub fn new(viewport_width: f32) -> Self {
         Self {
             filter: SemanticFilter::new(),
@@ -64,24 +65,30 @@ impl BrowserEngine {
     }
 
     /// Set the ad blocker engine (shared reference).
+    #[must_use] 
     pub fn with_adblock(mut self, adblock: Arc<AdBlockEngine>) -> Self {
         self.adblock = Some(adblock);
         self
     }
 
     /// Enable/disable SIMD pipeline
+    #[must_use] 
     pub fn with_simd(mut self, enabled: bool) -> Self {
         self.use_simd = enabled;
         self
     }
 
     /// Load a URL through the full pipeline
+    ///
+    /// # Errors
+    ///
+    /// Returns `PageError` if ad-block triggers, fetch fails, or processing fails.
     pub fn load_page(&self, url: &str) -> Result<PageResult, PageError> {
         // Ad block check on the main page URL
         if let Some(ref ab) = self.adblock {
             if let Some(reason) = ab.should_block(url) {
                 return Err(PageError {
-                    message: format!("Blocked ({:?}): {}", reason, url),
+                    message: format!("Blocked ({reason:?}): {url}"),
                     phase: "adblock",
                 });
             }
@@ -96,6 +103,10 @@ impl BrowserEngine {
     }
 
     /// Load a URL through the pipeline using ALICE-Cache for caching
+    ///
+    /// # Errors
+    ///
+    /// Returns `PageError` if ad-block triggers, fetch fails, or processing fails.
     #[cfg(feature = "smart-cache")]
     pub fn load_page_cached(
         &self,
@@ -121,6 +132,10 @@ impl BrowserEngine {
     }
 
     /// Process raw HTML through the pipeline (for testing)
+    ///
+    /// # Errors
+    ///
+    /// Returns `PageError` if DOM processing fails.
     pub fn process_html(
         &self,
         html: &str,
@@ -158,19 +173,23 @@ impl BrowserEngine {
 
     /// SIMD-accelerated page processing pipeline.
     ///
-    /// Fetch → Parse → SoA Transform → SIMD Classify → Prune → SIMD Layout
+    /// Fetch → Parse → `SoA` Transform → SIMD Classify → Prune → SIMD Layout
     ///
     /// This is the "カリッカリ" (Deep Fried) pipeline:
-    /// - SoA: data laid out for sequential SIMD access
+    /// - `SoA`: data laid out for sequential SIMD access
     /// - SIMD: 8 nodes classified per instruction
     /// - Branchless: zero conditional branches in classification
     /// - Division Exorcism: all divisions replaced with reciprocal multiplication
+    ///
+    /// # Errors
+    ///
+    /// Returns `PageError` if ad-block triggers, fetch fails, or SIMD processing fails.
     pub fn load_page_simd(&self, url: &str) -> Result<SimdPageResult, PageError> {
         // Phase 1: Ad block check
         if let Some(ref ab) = self.adblock {
             if let Some(reason) = ab.should_block(url) {
                 return Err(PageError {
-                    message: format!("Blocked ({:?}): {}", reason, url),
+                    message: format!("Blocked ({reason:?}): {url}"),
                     phase: "adblock",
                 });
             }
@@ -186,6 +205,10 @@ impl BrowserEngine {
     }
 
     /// Process HTML through the SIMD pipeline
+    ///
+    /// # Errors
+    ///
+    /// Returns `PageError` if SIMD processing fails.
     pub fn process_html_simd(
         &self,
         html: &str,
@@ -229,7 +252,8 @@ impl BrowserEngine {
         })
     }
 
-    /// SIMD-accelerated filter pass (used by process_html when use_simd=true)
+    /// SIMD-accelerated filter pass (used by `process_html` when `use_simd=true`)
+    #[allow(clippy::unused_self)]
     fn filter_simd(&self, dom: &mut DomTree) -> FilterStats {
         let mut soa = dom_to_soa(&dom.root);
         let simd_stats = classify_batch(&mut soa);

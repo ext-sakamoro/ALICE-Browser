@@ -2,7 +2,7 @@
 //!
 //! Instead of classifying nodes one-by-one with match/if chains,
 //! we process 8 nodes simultaneously using SIMD comparisons and
-//! branchless mask.blend() operations.
+//! branchless `mask.blend()` operations.
 //!
 //! Performance model:
 //!   - Traditional: 1 node × N branches × pipeline flush risk = slow
@@ -11,7 +11,7 @@
 use super::soa::NodeFeaturesSoA;
 use super::{F32x8, I32x8, MaskF32x8};
 
-/// Classification indices matching dom::Classification
+/// Classification indices matching `dom::Classification`
 const CLASS_CONTENT: i32 = 0;
 const CLASS_NAVIGATION: i32 = 1;
 const CLASS_ADVERTISEMENT: i32 = 2;
@@ -33,10 +33,10 @@ pub struct SimdFilterStats {
     pub removed_nodes: usize,
 }
 
-/// Classify all nodes in the SoA using branchless SIMD operations.
+/// Classify all nodes in the `SoA` using branchless SIMD operations.
 ///
 /// This is the heart of the "カリッカリ" optimization:
-/// - No if/else per node — only mask.blend()
+/// - No if/else per node — only `mask.blend()`
 /// - 8 nodes processed per iteration
 /// - All feature comparisons happen in parallel across 8 lanes
 ///
@@ -46,36 +46,13 @@ pub struct SimdFilterStats {
 ///   3. nav → Navigation
 ///   4. interactive tags → Interactive
 ///   5. media tags → Media
-///   6. has_ad_class || has_data_ad → Advertisement
-///   7. has_tracker_class → Tracker
-///   8. link_density > 0.6 && child_count > 3/32 → Navigation
-///   9. text_density > 10.0 → Content
+///   6. `has_ad_class` || `has_data_ad` → Advertisement
+///   7. `has_tracker_class` → Tracker
+///   8. `link_density` > 0.6 && `child_count` > 3/32 → Navigation
+///   9. `text_density` > 10.0 → Content
 ///  10. header/footer tags → Structural
 ///  11. otherwise → Unknown
 pub fn classify_batch(soa: &mut NodeFeaturesSoA) -> SimdFilterStats {
-    let mut stats = SimdFilterStats::default();
-    stats.total_nodes = soa.count;
-
-    let batches = soa.batch_count();
-    let node_count = soa.count;
-
-    // Threshold constants (splatted once, reused across all batches)
-    let threshold_link_density = F32x8::splat(0.6);
-    let threshold_child_count = F32x8::splat(3.0 / 32.0); // normalized
-    let threshold_text_density = F32x8::splat(10.0);
-    let half = F32x8::splat(0.5);
-
-    // Classification constants
-    let cls_content = I32x8::splat(CLASS_CONTENT);
-    let cls_nav = I32x8::splat(CLASS_NAVIGATION);
-    let cls_ad = I32x8::splat(CLASS_ADVERTISEMENT);
-    let cls_tracker = I32x8::splat(CLASS_TRACKER);
-    let cls_decoration = I32x8::splat(CLASS_DECORATION);
-    let cls_interactive = I32x8::splat(CLASS_INTERACTIVE);
-    let cls_media = I32x8::splat(CLASS_MEDIA);
-    let cls_structural = I32x8::splat(CLASS_STRUCTURAL);
-    let cls_unknown = I32x8::splat(CLASS_UNKNOWN);
-
     // Helper: load 8 f32 from slice at batch offset (safe, handles short slices)
     #[inline(always)]
     fn load_f32(slice: &[f32], batch: usize) -> F32x8 {
@@ -103,6 +80,31 @@ pub fn classify_batch(soa: &mut NodeFeaturesSoA) -> SimdFilterStats {
             I32x8 { v }
         }
     }
+
+    let mut stats = SimdFilterStats {
+        total_nodes: soa.count,
+        ..SimdFilterStats::default()
+    };
+
+    let batches = soa.batch_count();
+    let node_count = soa.count;
+
+    // Threshold constants (splatted once, reused across all batches)
+    let threshold_link_density = F32x8::splat(0.6);
+    let threshold_child_count = F32x8::splat(3.0 / 32.0); // normalized
+    let threshold_text_density = F32x8::splat(10.0);
+    let half = F32x8::splat(0.5);
+
+    // Classification constants
+    let cls_content = I32x8::splat(CLASS_CONTENT);
+    let cls_nav = I32x8::splat(CLASS_NAVIGATION);
+    let cls_ad = I32x8::splat(CLASS_ADVERTISEMENT);
+    let cls_tracker = I32x8::splat(CLASS_TRACKER);
+    let cls_decoration = I32x8::splat(CLASS_DECORATION);
+    let cls_interactive = I32x8::splat(CLASS_INTERACTIVE);
+    let cls_media = I32x8::splat(CLASS_MEDIA);
+    let cls_structural = I32x8::splat(CLASS_STRUCTURAL);
+    let cls_unknown = I32x8::splat(CLASS_UNKNOWN);
 
     for batch in 0..batches {
         let offset = batch * 8;
@@ -215,26 +217,27 @@ pub fn classify_batch(soa: &mut NodeFeaturesSoA) -> SimdFilterStats {
 #[inline(always)]
 fn blend_i32(mask: MaskF32x8, a: I32x8, b: I32x8) -> I32x8 {
     let mut out = [0i32; 8];
-    for i in 0..8 {
+    for (i, out_elem) in out.iter_mut().enumerate() {
         // Branchless: use arithmetic instead of if/else
         // mask bit is either 0xFFFFFFFF (-1 as i32) or 0x00000000 (0)
         let m = mask.bits[i] as i32; // -1 or 0
-        // m & (a - b) + b  ≡  if m then a else b
-        // But since m is all-ones or all-zeros, we can use:
-        out[i] = (a.v[i] & m) | (b.v[i] & !m);
+                                     // m & (a - b) + b  ≡  if m then a else b
+                                     // But since m is all-ones or all-zeros, we can use:
+        *out_elem = (a.v[i] & m) | (b.v[i] & !m);
     }
     I32x8 { v: out }
 }
 
-/// Convert SIMD classification index back to dom::Classification
+/// Convert SIMD classification index back to `dom::Classification`
 #[inline]
+#[must_use] 
 pub fn index_to_classification(idx: i32) -> crate::dom::Classification {
     crate::dom::Classification::from_index(idx as usize)
 }
 
 /// Apply SIMD classification results back to the DOM tree.
 ///
-/// Walks the DOM in the same order as dom_to_soa flattening,
+/// Walks the DOM in the same order as `dom_to_soa` flattening,
 /// applying the SIMD-computed classifications.
 pub fn apply_classifications(
     node: &mut crate::dom::DomNode,
@@ -271,49 +274,99 @@ mod tests {
         let mut soa = NodeFeaturesSoA::with_capacity(8);
 
         // Node 0: script → should be Tracker
-        soa.push(NodeFeatures {
-            tag_type: 3, is_script: 1.0, is_style: 0.0, is_nav: 0.0,
-            is_interactive: 0.0, is_media: 0.0, has_ad_class: 0.0,
-            has_tracker_class: 0.0, has_data_ad: 0.0, text_density: 0.0,
-            link_density: 0.0, child_count: 0.0, text_length: 0.0,
-            has_href: 0.0, attr_count: 0.0,
+        soa.push(&NodeFeatures {
+            tag_type: 3,
+            is_script: 1.0,
+            is_style: 0.0,
+            is_nav: 0.0,
+            is_interactive: 0.0,
+            is_media: 0.0,
+            has_ad_class: 0.0,
+            has_tracker_class: 0.0,
+            has_data_ad: 0.0,
+            text_density: 0.0,
+            link_density: 0.0,
+            child_count: 0.0,
+            text_length: 0.0,
+            has_href: 0.0,
+            attr_count: 0.0,
         });
 
         // Node 1: ad class → should be Advertisement
-        soa.push(NodeFeatures {
-            tag_type: 0, is_script: 0.0, is_style: 0.0, is_nav: 0.0,
-            is_interactive: 0.0, is_media: 0.0, has_ad_class: 1.0,
-            has_tracker_class: 0.0, has_data_ad: 0.0, text_density: 5.0,
-            link_density: 0.0, child_count: 0.0, text_length: 0.0,
-            has_href: 0.0, attr_count: 0.0,
+        soa.push(&NodeFeatures {
+            tag_type: 0,
+            is_script: 0.0,
+            is_style: 0.0,
+            is_nav: 0.0,
+            is_interactive: 0.0,
+            is_media: 0.0,
+            has_ad_class: 1.0,
+            has_tracker_class: 0.0,
+            has_data_ad: 0.0,
+            text_density: 5.0,
+            link_density: 0.0,
+            child_count: 0.0,
+            text_length: 0.0,
+            has_href: 0.0,
+            attr_count: 0.0,
         });
 
         // Node 2: high text density → should be Content
-        soa.push(NodeFeatures {
-            tag_type: 1, is_script: 0.0, is_style: 0.0, is_nav: 0.0,
-            is_interactive: 0.0, is_media: 0.0, has_ad_class: 0.0,
-            has_tracker_class: 0.0, has_data_ad: 0.0, text_density: 15.0,
-            link_density: 0.0, child_count: 0.0, text_length: 0.5,
-            has_href: 0.0, attr_count: 0.0,
+        soa.push(&NodeFeatures {
+            tag_type: 1,
+            is_script: 0.0,
+            is_style: 0.0,
+            is_nav: 0.0,
+            is_interactive: 0.0,
+            is_media: 0.0,
+            has_ad_class: 0.0,
+            has_tracker_class: 0.0,
+            has_data_ad: 0.0,
+            text_density: 15.0,
+            link_density: 0.0,
+            child_count: 0.0,
+            text_length: 0.5,
+            has_href: 0.0,
+            attr_count: 0.0,
         });
 
         // Node 3: nav tag → should be Navigation
-        soa.push(NodeFeatures {
-            tag_type: 5, is_script: 0.0, is_style: 0.0, is_nav: 1.0,
-            is_interactive: 0.0, is_media: 0.0, has_ad_class: 0.0,
-            has_tracker_class: 0.0, has_data_ad: 0.0, text_density: 2.0,
-            link_density: 0.0, child_count: 0.0, text_length: 0.0,
-            has_href: 0.0, attr_count: 0.0,
+        soa.push(&NodeFeatures {
+            tag_type: 5,
+            is_script: 0.0,
+            is_style: 0.0,
+            is_nav: 1.0,
+            is_interactive: 0.0,
+            is_media: 0.0,
+            has_ad_class: 0.0,
+            has_tracker_class: 0.0,
+            has_data_ad: 0.0,
+            text_density: 2.0,
+            link_density: 0.0,
+            child_count: 0.0,
+            text_length: 0.0,
+            has_href: 0.0,
+            attr_count: 0.0,
         });
 
         // Nodes 4-7: padding (Unknown)
         for _ in 4..8 {
-            soa.push(NodeFeatures {
-                tag_type: 17, is_script: 0.0, is_style: 0.0, is_nav: 0.0,
-                is_interactive: 0.0, is_media: 0.0, has_ad_class: 0.0,
-                has_tracker_class: 0.0, has_data_ad: 0.0, text_density: 0.0,
-                link_density: 0.0, child_count: 0.0, text_length: 0.0,
-                has_href: 0.0, attr_count: 0.0,
+            soa.push(&NodeFeatures {
+                tag_type: 17,
+                is_script: 0.0,
+                is_style: 0.0,
+                is_nav: 0.0,
+                is_interactive: 0.0,
+                is_media: 0.0,
+                has_ad_class: 0.0,
+                has_tracker_class: 0.0,
+                has_data_ad: 0.0,
+                text_density: 0.0,
+                link_density: 0.0,
+                child_count: 0.0,
+                text_length: 0.0,
+                has_href: 0.0,
+                attr_count: 0.0,
             });
         }
 

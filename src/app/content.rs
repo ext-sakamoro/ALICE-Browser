@@ -7,12 +7,12 @@
 //! - `draw_sdf_content`  — 3-D / OZ raymarched view (`sdf-render` feature)
 //! - `draw_stats_panel`  — right-side statistics panel
 
-use eframe::egui;
 use alice_browser::render::RenderMode;
+use eframe::egui;
 
-use crate::oz::{resolve_url, fetch_link_preview, LinkPreviewStatus};
-use crate::ui::{render_layout_node, truncate_str};
 use super::BrowserApp;
+use crate::oz::{fetch_link_preview, resolve_url, LinkPreviewStatus};
+use crate::ui::{render_layout_node, truncate_str};
 
 impl BrowserApp {
     // ── 2-D SDF paint ────────────────────────────────────────────────────────
@@ -53,8 +53,8 @@ impl BrowserApp {
 
     #[cfg(feature = "sdf-render")]
     pub fn draw_sdf_content(&mut self, ui: &mut egui::Ui, ctx: &egui::Context) {
+        use alice_browser::render::sdf_renderer::{auto_camera, render_sdf_interactive};
         use std::sync::mpsc;
-        use alice_browser::render::sdf_renderer::{render_sdf_interactive, auto_camera};
 
         // Build spatial scene lazily
         if self.spatial_scene.is_none() {
@@ -176,7 +176,7 @@ impl BrowserApp {
                             {
                                 self.oz_preview_for = Some(fetch_url_str.clone());
                                 self.oz_preview = Some(crate::oz::LinkPreview {
-                                    url: fetch_url_str.clone(),
+                                    _url: fetch_url_str.clone(),
                                     title: String::new(),
                                     description: String::new(),
                                     texts: Vec::new(),
@@ -238,36 +238,37 @@ impl BrowserApp {
         }
 
         // Raymarch render (Spatial3D only — OZ uses egui overlay)
-        if self.render_mode != RenderMode::OzMode {
-            if self.cam_dirty || self.sdf_texture.is_none() {
-                if let Some(ref scene) = self.spatial_scene {
-                    let has_gpu = self.gpu_renderer.is_some();
-                    let (w, h) = if self.cam_dragging {
-                        if has_gpu { (640, 480) } else { (240, 180) }
+        if self.render_mode != RenderMode::OzMode && (self.cam_dirty || self.sdf_texture.is_none())
+        {
+            if let Some(ref scene) = self.spatial_scene {
+                let has_gpu = self.gpu_renderer.is_some();
+                let (w, h) = if self.cam_dragging {
+                    if has_gpu {
+                        (640, 480)
                     } else {
-                        if has_gpu { (1280, 960) } else { (640, 480) }
-                    };
-
-                    let pixels = self
-                        .gpu_renderer
-                        .as_mut()
-                        .and_then(|gpu| gpu.render(scene, w, h, &self.cam_params))
-                        .or_else(|| render_sdf_interactive(scene, w, h, &self.cam_params));
-
-                    if let Some(pixels) = pixels {
-                        let image =
-                            egui::ColorImage::from_rgba_unmultiplied([w, h], &pixels);
-                        self.sdf_texture = Some(ctx.load_texture(
-                            "sdf_view",
-                            image,
-                            egui::TextureOptions::LINEAR,
-                        ));
-                        self.sdf_mode_rendered = Some(self.render_mode);
+                        (240, 180)
                     }
-                    self.cam_dirty = false;
-                    if self.cam_dragging {
-                        ctx.request_repaint();
-                    }
+                } else if has_gpu {
+                    (1280, 960)
+                } else {
+                    (640, 480)
+                };
+
+                let pixels = self
+                    .gpu_renderer
+                    .as_mut()
+                    .and_then(|gpu| gpu.render(scene, w, h, &self.cam_params))
+                    .or_else(|| render_sdf_interactive(scene, w, h, &self.cam_params));
+
+                if let Some(pixels) = pixels {
+                    let image = egui::ColorImage::from_rgba_unmultiplied([w, h], &pixels);
+                    self.sdf_texture =
+                        Some(ctx.load_texture("sdf_view", image, egui::TextureOptions::LINEAR));
+                    self.sdf_mode_rendered = Some(self.render_mode);
+                }
+                self.cam_dirty = false;
+                if self.cam_dragging {
+                    ctx.request_repaint();
                 }
             }
         }
@@ -353,8 +354,7 @@ impl BrowserApp {
                     // Font size: layer-based + importance + perspective
                     let layer_scale = StreamState::layer_font_scale(p.layer);
                     let depth_scale = (12.0 / rz).clamp(0.5, 2.0);
-                    let base_font: f32 =
-                        (13.0 + p.importance * 14.0) * layer_scale * depth_scale;
+                    let base_font: f32 = (13.0 + p.importance * 14.0) * layer_scale * depth_scale;
                     let grabbed_scale: f32 = if p.grabbed { 1.4 } else { 1.0 };
                     let font_size = (base_font * grabbed_scale).clamp(8.0_f32, 48.0);
 
@@ -374,8 +374,7 @@ impl BrowserApp {
 
                     // Grabbed: highlight background
                     if p.grabbed {
-                        let text_w =
-                            p.text.chars().count().min(30) as f32 * font_size * 0.55;
+                        let text_w = p.text.chars().count().min(30) as f32 * font_size * 0.55;
                         let pad = 4.0;
                         let bg_rect = egui::Rect::from_center_size(
                             egui::pos2(sx, sy),
@@ -401,9 +400,7 @@ impl BrowserApp {
                         let has_preview = self
                             .oz_preview
                             .as_ref()
-                            .map(|p| {
-                                p.status != LinkPreviewStatus::Loading || !p.title.is_empty()
-                            })
+                            .map(|p| p.status != LinkPreviewStatus::Loading || !p.title.is_empty())
                             .unwrap_or(false);
                         let is_loading = self
                             .oz_preview
@@ -426,20 +423,21 @@ impl BrowserApp {
                         };
                         let panel_w = 500.0_f32.min(rect.width() - 40.0);
                         let base_h = 50.0_f32;
-                        let link_h =
-                            if has_href || is_loading || has_preview { 22.0_f32 } else { 0.0 };
+                        let link_h = if has_href || is_loading || has_preview {
+                            22.0_f32
+                        } else {
+                            0.0
+                        };
                         let desc_h = if has_desc { 36.0_f32 } else { 0.0 };
                         let preview_h = if has_preview || is_loading {
                             24.0 + desc_h + preview_lines as f32 * 17.0
                         } else {
                             0.0
                         };
-                        let panel_h =
-                            (base_h + link_h + preview_h).min(rect.height() * 0.55);
+                        let panel_h = (base_h + link_h + preview_h).min(rect.height() * 0.55);
 
                         // Smart placement: anchor near hologram_screen_pos
-                        let anchor =
-                            self.oz_hologram_screen_pos.unwrap_or(rect.center());
+                        let anchor = self.oz_hologram_screen_pos.unwrap_or(rect.center());
                         let panel_x = (anchor.x - panel_w * 0.5)
                             .clamp(rect.left() + 8.0, rect.right() - panel_w - 8.0);
                         let panel_y = if anchor.y < rect.center().y {
@@ -572,11 +570,7 @@ impl BrowserApp {
                         let mut y = panel_rect.top() + 12.0;
 
                         // Header: dot + category + tag badge
-                        painter.circle_filled(
-                            egui::pos2(left + 2.0, y + 6.0),
-                            5.0,
-                            accent,
-                        );
+                        painter.circle_filled(egui::pos2(left + 2.0, y + 6.0), 5.0, accent);
                         painter.text(
                             egui::pos2(left + 12.0, y),
                             egui::Align2::LEFT_TOP,
@@ -595,9 +589,8 @@ impl BrowserApp {
                             "" => "TEXT",
                             other => other,
                         };
-                        let tag_x = left
-                            + 14.0
-                            + info.category_name.chars().count().min(16) as f32 * 7.5;
+                        let tag_x =
+                            left + 14.0 + info.category_name.chars().count().min(16) as f32 * 7.5;
                         let tag_bg = egui::Rect::from_min_size(
                             egui::pos2(tag_x, y - 1.0),
                             egui::vec2(tag_text.len() as f32 * 7.0 + 10.0, 16.0),
@@ -629,8 +622,7 @@ impl BrowserApp {
                         y += 20.0;
                         let max_chars = ((panel_w - 40.0) / 8.5) as usize;
                         let display_text = if info.meta.full_text.chars().count() > max_chars {
-                            let t: String =
-                                info.meta.full_text.chars().take(max_chars).collect();
+                            let t: String = info.meta.full_text.chars().take(max_chars).collect();
                             format!("{}...", t)
                         } else {
                             info.meta.full_text.clone()
@@ -668,7 +660,7 @@ impl BrowserApp {
                             painter.text(
                                 egui::pos2(left, y),
                                 egui::Align2::LEFT_TOP,
-                                &format!("\u{2197} {}", link_display),
+                                format!("\u{2197} {}", link_display),
                                 egui::FontId::proportional(11.0),
                                 egui::Color32::from_rgba_unmultiplied(0, 100, 200, text_alpha),
                             );
@@ -694,16 +686,13 @@ impl BrowserApp {
                                 painter.text(
                                     egui::pos2(left, y),
                                     egui::Align2::LEFT_TOP,
-                                    &format!("Error: {}", e),
+                                    format!("Error: {}", e),
                                     egui::FontId::proportional(11.0),
-                                    egui::Color32::from_rgba_unmultiplied(
-                                        200, 60, 60, text_alpha,
-                                    ),
+                                    egui::Color32::from_rgba_unmultiplied(200, 60, 60, text_alpha),
                                 );
                             } else {
                                 let max_y = panel_rect.bottom() - 20.0;
-                                let text_max_chars =
-                                    ((panel_w - 40.0) / 7.0) as usize;
+                                let text_max_chars = ((panel_w - 40.0) / 7.0) as usize;
 
                                 if !preview.title.is_empty() && y < max_y {
                                     let title_display =
@@ -728,8 +717,7 @@ impl BrowserApp {
                                         if offset >= desc_chars.len() || y >= max_y {
                                             break;
                                         }
-                                        let end = (offset + text_max_chars)
-                                            .min(desc_chars.len());
+                                        let end = (offset + text_max_chars).min(desc_chars.len());
                                         let mut line: String =
                                             desc_chars[offset..end].iter().collect();
                                         if end < desc_chars.len() {
@@ -762,9 +750,8 @@ impl BrowserApp {
                                     } else {
                                         140
                                     };
-                                    let fa = ((line_alpha as f32 / 255.0)
-                                        * holo_alpha
-                                        * 255.0) as u8;
+                                    let fa =
+                                        ((line_alpha as f32 / 255.0) * holo_alpha * 255.0) as u8;
                                     let font_size = if i < 3 { 12.0 } else { 11.0 };
                                     painter.text(
                                         egui::pos2(left, y),
@@ -781,10 +768,7 @@ impl BrowserApp {
                         // Hint: double-click to open
                         if info.meta.href.is_some() {
                             painter.text(
-                                egui::pos2(
-                                    panel_rect.right() - 16.0,
-                                    panel_rect.bottom() - 16.0,
-                                ),
+                                egui::pos2(panel_rect.right() - 16.0, panel_rect.bottom() - 16.0),
                                 egui::Align2::RIGHT_BOTTOM,
                                 "Double-click to open",
                                 egui::FontId::proportional(10.0),
@@ -814,7 +798,10 @@ impl BrowserApp {
             ui.painter().text(
                 response.rect.left_bottom() + egui::vec2(8.0, -8.0),
                 egui::Align2::LEFT_BOTTOM,
-                format!("Drag: rotate | Scroll: zoom | d={:.1}", self.cam_params.distance),
+                format!(
+                    "Drag: rotate | Scroll: zoom | d={:.1}",
+                    self.cam_params.distance
+                ),
                 egui::FontId::proportional(12.0),
                 egui::Color32::from_rgba_premultiplied(255, 255, 255, 180),
             );
@@ -962,7 +949,11 @@ impl BrowserApp {
                     if let Some(ref scene) = self.spatial_scene {
                         ui.label(format!("3D Primitives: {}", scene.primitives.len()));
                     }
-                    let res = if self.cam_dragging { "240x180" } else { "640x480" };
+                    let res = if self.cam_dragging {
+                        "240x180"
+                    } else {
+                        "640x480"
+                    };
                     if self.sdf_texture.is_some() {
                         ui.colored_label(
                             egui::Color32::from_rgb(0, 180, 0),
@@ -971,10 +962,7 @@ impl BrowserApp {
                     }
                     ui.label(format!("Cam dist: {:.2}", self.cam_params.distance));
                 } else if self.sdf_texture.is_some() {
-                    ui.colored_label(
-                        egui::Color32::from_rgb(0, 180, 0),
-                        "Raymarched: 640x480",
-                    );
+                    ui.colored_label(egui::Color32::from_rgb(0, 180, 0), "Raymarched: 640x480");
                 }
             }
         }

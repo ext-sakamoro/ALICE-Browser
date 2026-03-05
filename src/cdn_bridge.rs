@@ -37,8 +37,12 @@ impl BrowserCdnRouter {
 
     /// Route to nearest edge node by Vivaldi distance
     pub fn route(&mut self, _resource_hash: u64) -> Option<CdnRouteDecision> {
-        if self.edge_coords.is_empty() { return None; }
-        let (best_id, best_rtt) = self.edge_coords.iter()
+        if self.edge_coords.is_empty() {
+            return None;
+        }
+        let (best_id, best_rtt) = self
+            .edge_coords
+            .iter()
             .map(|(id, coord)| (*id, self.local_coord.distance(coord)))
             .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal))?;
         self.requests_routed += 1;

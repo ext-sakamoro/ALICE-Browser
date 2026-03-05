@@ -1,10 +1,10 @@
 //! egui Painter-based SDF-styled UI rendering.
 //!
-//! Draws PaintElements using egui's Painter API with smooth hover
+//! Draws `PaintElements` using egui's Painter API with smooth hover
 //! animations, drop shadows, and rounded corners inspired by SDF rendering.
 
-use std::collections::HashMap;
 use egui::{Color32, FontId, Pos2, Rect, Rounding, Stroke, TextureHandle, Vec2};
+use std::collections::HashMap;
 
 use crate::render::sdf_ui::{PaintElement, PaintKind};
 
@@ -62,7 +62,14 @@ pub struct SdfPaintState {
     hovered_id: Option<usize>,
 }
 
+impl Default for SdfPaintState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SdfPaintState {
+    #[must_use] 
     pub fn new() -> Self {
         Self { hovered_id: None }
     }
@@ -98,7 +105,11 @@ impl SdfPaintState {
 
             let painter = ui.painter_at(full_rect);
             let origin = full_rect.min;
-            let theme = if dark_mode { Theme::dark() } else { Theme::light() };
+            let theme = if dark_mode {
+                Theme::dark()
+            } else {
+                Theme::light()
+            };
 
             // Page background
             painter.rect_filled(full_rect, Rounding::ZERO, theme.page_bg);
@@ -183,7 +194,7 @@ impl SdfPaintState {
                         if elem.href.is_some() {
                             let r = elem_rect(elem, origin);
                             if r.contains(pos) {
-                                clicked_href = elem.href.clone();
+                                clicked_href.clone_from(&elem.href);
                                 break;
                             }
                         }
@@ -218,7 +229,12 @@ fn color4(c: [f32; 4]) -> Color32 {
 
 fn lerp_color(a: Color32, b: Color32, t: f32) -> Color32 {
     let m = |a: u8, b: u8| ((a as f32) * (1.0 - t) + (b as f32) * t) as u8;
-    Color32::from_rgba_unmultiplied(m(a.r(), b.r()), m(a.g(), b.g()), m(a.b(), b.b()), m(a.a(), b.a()))
+    Color32::from_rgba_unmultiplied(
+        m(a.r(), b.r()),
+        m(a.g(), b.g()),
+        m(a.b(), b.b()),
+        m(a.a(), b.a()),
+    )
 }
 
 fn paint_text_wrapped(
@@ -247,7 +263,13 @@ fn paint_text_wrapped(
 
 // ── Drawing functions ──
 
-fn draw_card(painter: &egui::Painter, rect: Rect, elem: &PaintElement, hover_t: f32, theme: &Theme) {
+fn draw_card(
+    painter: &egui::Painter,
+    rect: Rect,
+    elem: &PaintElement,
+    hover_t: f32,
+    theme: &Theme,
+) {
     let shadow_depth = elem.shadow_depth * (1.0 + hover_t * 1.5);
     let radius = elem.corner_radius + hover_t * 2.0;
     let rounding = Rounding::same(radius);
@@ -298,7 +320,9 @@ fn draw_heading(
                 bar,
                 Rounding::same(1.5),
                 Color32::from_rgba_premultiplied(
-                    theme.heading_accent.r(), theme.heading_accent.g(), theme.heading_accent.b(),
+                    theme.heading_accent.r(),
+                    theme.heading_accent.g(),
+                    theme.heading_accent.b(),
                     (hover_t * 200.0) as u8,
                 ),
             );
@@ -306,7 +330,15 @@ fn draw_heading(
 
         let color = lerp_color(theme.heading_color, theme.heading_accent, hover_t * 0.3);
 
-        paint_text_wrapped(painter, ctx, rect.min, text, elem.font_size, color, rect.width());
+        paint_text_wrapped(
+            painter,
+            ctx,
+            rect.min,
+            text,
+            elem.font_size,
+            color,
+            rect.width(),
+        );
     }
 }
 
@@ -318,7 +350,15 @@ fn draw_text(
     theme: &Theme,
 ) {
     if let Some(ref text) = elem.text {
-        paint_text_wrapped(painter, ctx, rect.min, text, elem.font_size, theme.text_color, rect.width());
+        paint_text_wrapped(
+            painter,
+            ctx,
+            rect.min,
+            text,
+            elem.font_size,
+            theme.text_color,
+            rect.width(),
+        );
     }
 }
 
@@ -338,28 +378,49 @@ fn draw_link(
             let bg_alpha = (hover_t * 25.0) as u8;
             let bg_rect = Rect::from_min_size(
                 rect.min - Vec2::new(3.0, 1.0),
-                Vec2::new(rect.width().min(elem.font_size * text.len() as f32 * 0.55 + 6.0), elem.font_size + 4.0),
+                Vec2::new(
+                    rect.width()
+                        .min(elem.font_size * text.len() as f32 * 0.55 + 6.0),
+                    elem.font_size + 4.0,
+                ),
             );
             painter.rect_filled(
                 bg_rect,
                 Rounding::same(3.0),
                 Color32::from_rgba_premultiplied(
-                    theme.link_color.r(), theme.link_color.g(), theme.link_color.b(), bg_alpha,
+                    theme.link_color.r(),
+                    theme.link_color.g(),
+                    theme.link_color.b(),
+                    bg_alpha,
                 ),
             );
         }
 
         // Text
-        let text_rect = paint_text_wrapped(painter, ctx, rect.min, text, elem.font_size, color, rect.width());
+        let text_rect = paint_text_wrapped(
+            painter,
+            ctx,
+            rect.min,
+            text,
+            elem.font_size,
+            color,
+            rect.width(),
+        );
 
         // Underline
         let alpha = ((0.4 + hover_t * 0.6) * 255.0) as u8;
         let y = text_rect.max.y;
         painter.line_segment(
             [Pos2::new(text_rect.min.x, y), Pos2::new(text_rect.max.x, y)],
-            Stroke::new(1.0, Color32::from_rgba_premultiplied(
-                theme.link_color.r(), theme.link_color.g(), theme.link_color.b(), alpha,
-            )),
+            Stroke::new(
+                1.0,
+                Color32::from_rgba_premultiplied(
+                    theme.link_color.r(),
+                    theme.link_color.g(),
+                    theme.link_color.b(),
+                    alpha,
+                ),
+            ),
         );
     }
 }
@@ -378,7 +439,11 @@ fn draw_button(
     let shadow_d = elem.shadow_depth * (1.0 + hover_t);
     if shadow_d > 0.0 {
         let sr = rect.translate(Vec2::new(0.0, shadow_d));
-        painter.rect_filled(sr, Rounding::same(radius + 1.0), Color32::from_rgba_premultiplied(0, 0, 0, 20));
+        painter.rect_filled(
+            sr,
+            Rounding::same(radius + 1.0),
+            Color32::from_rgba_premultiplied(0, 0, 0, 20),
+        );
     }
 
     // Background
@@ -388,7 +453,15 @@ fn draw_button(
 
     // Label
     if let Some(ref text) = elem.text {
-        paint_text_wrapped(painter, ctx, rect.center() - Vec2::new(0.0, elem.font_size * 0.5), text, elem.font_size, Color32::WHITE, rect.width());
+        paint_text_wrapped(
+            painter,
+            ctx,
+            rect.center() - Vec2::new(0.0, elem.font_size * 0.5),
+            text,
+            elem.font_size,
+            Color32::WHITE,
+            rect.width(),
+        );
     }
 }
 
@@ -443,10 +516,16 @@ mod tests {
     #[test]
     fn elem_rect_offset() {
         let elem = PaintElement {
-            id: 1, kind: PaintKind::Text,
+            id: 1,
+            kind: PaintKind::Text,
             rect: [10.0, 20.0, 100.0, 30.0],
-            color: [0.0; 4], corner_radius: 0.0, shadow_depth: 0.0,
-            text: Some("hi".into()), font_size: 16.0, href: None, image_url: None,
+            color: [0.0; 4],
+            corner_radius: 0.0,
+            shadow_depth: 0.0,
+            text: Some("hi".into()),
+            font_size: 16.0,
+            href: None,
+            image_url: None,
         };
         let r = elem_rect(&elem, Pos2::new(50.0, 100.0));
         assert!((r.min.x - 60.0).abs() < 0.01);

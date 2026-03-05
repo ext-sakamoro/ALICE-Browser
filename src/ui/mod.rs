@@ -4,12 +4,13 @@
 //! into egui widgets, plus small text-manipulation utilities used throughout
 //! the browser UI.
 
-use eframe::egui;
 use alice_browser::render::layout::LayoutNode;
+use eframe::egui;
 
 // ─── Layout rendering ─────────────────────────────────────────────────────────
 
 /// Recursively render a `LayoutNode` tree using egui widgets.
+#[allow(clippy::only_used_in_recursion)]
 pub fn render_layout_node(
     ui: &mut egui::Ui,
     node: &LayoutNode,
@@ -50,11 +51,7 @@ pub fn render_layout_node(
         "h3" | "h4" | "h5" | "h6" => {
             let text = collect_display_text(node);
             if !text.is_empty() {
-                let rt = maybe_highlight(
-                    egui::RichText::new(&text).size(18.0),
-                    &text,
-                    highlight,
-                );
+                let rt = maybe_highlight(egui::RichText::new(&text).size(18.0), &text, highlight);
                 ui.heading(rt);
                 ui.add_space(4.0);
             }

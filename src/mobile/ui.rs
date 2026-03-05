@@ -1,6 +1,6 @@
 //! Mobile UI Components — Bottom Bar & Fullscreen Mode
 //!
-//! Mobile-first UI following MOBILE_SPEC.md:
+//! Mobile-first UI following `MOBILE_SPEC.md`:
 //!
 //! ┌─────────────────────────┐
 //! │ [ブロック数: 12] [🔒]    │  ← Status bar (minimal, auto-hide)
@@ -15,6 +15,7 @@
 use super::touch::{Gesture, GestureRecognizer, SwipeDirection};
 
 /// Mobile UI state
+#[allow(clippy::struct_excessive_bools)]
 pub struct MobileUI {
     /// Whether bottom bar is visible
     pub bottom_bar_visible: bool,
@@ -55,10 +56,12 @@ pub struct MobileBlockStats {
 }
 
 impl MobileBlockStats {
+    #[must_use] 
     pub fn page_total(&self) -> usize {
         self.page_ads_blocked + self.page_trackers_blocked
     }
 
+    #[must_use] 
     pub fn lifetime_total(&self) -> usize {
         self.total_ads_blocked + self.total_trackers_blocked
     }
@@ -85,6 +88,7 @@ pub enum MobileAction {
 }
 
 impl MobileUI {
+    #[must_use] 
     pub fn new(screen_width: f32, screen_height: f32) -> Self {
         Self {
             bottom_bar_visible: true,
@@ -130,40 +134,36 @@ impl MobileUI {
                 }
             }
 
-            Gesture::LongPress { x, y } => {
-                MobileAction::ShowLinkPreview(*x, *y)
-            }
+            Gesture::LongPress { x, y } => MobileAction::ShowLinkPreview(*x, *y),
 
-            Gesture::Swipe { direction, .. } => {
-                match direction {
-                    SwipeDirection::Right => {
-                        if self.can_go_back {
-                            MobileAction::GoBack
-                        } else {
-                            MobileAction::None
-                        }
-                    }
-                    SwipeDirection::Left => {
-                        if self.can_go_forward {
-                            MobileAction::GoForward
-                        } else {
-                            MobileAction::None
-                        }
-                    }
-                    SwipeDirection::Up => {
-                        self.bottom_bar_visible = false;
-                        self.status_bar_visible = false;
-                        self.fullscreen = true;
-                        MobileAction::ToggleFullscreen
-                    }
-                    SwipeDirection::Down => {
-                        self.status_bar_visible = true;
-                        self.bottom_bar_visible = true;
-                        self.fullscreen = false;
-                        MobileAction::ToggleFullscreen
+            Gesture::Swipe { direction, .. } => match direction {
+                SwipeDirection::Right => {
+                    if self.can_go_back {
+                        MobileAction::GoBack
+                    } else {
+                        MobileAction::None
                     }
                 }
-            }
+                SwipeDirection::Left => {
+                    if self.can_go_forward {
+                        MobileAction::GoForward
+                    } else {
+                        MobileAction::None
+                    }
+                }
+                SwipeDirection::Up => {
+                    self.bottom_bar_visible = false;
+                    self.status_bar_visible = false;
+                    self.fullscreen = true;
+                    MobileAction::ToggleFullscreen
+                }
+                SwipeDirection::Down => {
+                    self.status_bar_visible = true;
+                    self.bottom_bar_visible = true;
+                    self.fullscreen = false;
+                    MobileAction::ToggleFullscreen
+                }
+            },
 
             Gesture::Pinch { scale, .. } => {
                 self.zoom_level = (self.zoom_level * scale).clamp(0.5, 4.0);
@@ -239,7 +239,7 @@ impl MobileUI {
             // Block count
             let blocked = self.block_stats.page_total();
             ui.label(
-                egui::RichText::new(format!("Blocked: {}", blocked))
+                egui::RichText::new(format!("Blocked: {blocked}"))
                     .size(12.0)
                     .color(if blocked > 0 {
                         egui::Color32::from_rgb(76, 175, 80) // Green
@@ -273,9 +273,14 @@ impl MobileUI {
             } else {
                 egui::Color32::from_gray(80)
             };
-            if ui.add(egui::Button::new(
-                egui::RichText::new("<").size(20.0).color(back_color)
-            ).min_size(egui::vec2(40.0, 40.0))).clicked() && self.can_go_back {
+            if ui
+                .add(
+                    egui::Button::new(egui::RichText::new("<").size(20.0).color(back_color))
+                        .min_size(egui::vec2(40.0, 40.0)),
+                )
+                .clicked()
+                && self.can_go_back
+            {
                 action = MobileAction::GoBack;
             }
 
@@ -285,9 +290,14 @@ impl MobileUI {
             } else {
                 egui::Color32::from_gray(80)
             };
-            if ui.add(egui::Button::new(
-                egui::RichText::new(">").size(20.0).color(fwd_color)
-            ).min_size(egui::vec2(40.0, 40.0))).clicked() && self.can_go_forward {
+            if ui
+                .add(
+                    egui::Button::new(egui::RichText::new(">").size(20.0).color(fwd_color))
+                        .min_size(egui::vec2(40.0, 40.0)),
+                )
+                .clicked()
+                && self.can_go_forward
+            {
                 action = MobileAction::GoForward;
             }
 
@@ -307,9 +317,13 @@ impl MobileUI {
             }
 
             // Menu button
-            if ui.add(egui::Button::new(
-                egui::RichText::new("...").size(20.0)
-            ).min_size(egui::vec2(40.0, 40.0))).clicked() {
+            if ui
+                .add(
+                    egui::Button::new(egui::RichText::new("...").size(20.0))
+                        .min_size(egui::vec2(40.0, 40.0)),
+                )
+                .clicked()
+            {
                 self.menu_open = !self.menu_open;
                 action = MobileAction::ToggleMenu;
             }
@@ -346,13 +360,19 @@ impl MobileUI {
 
             // Block stats summary
             ui.label(egui::RichText::new("Block Statistics").strong());
-            ui.label(format!("Page: {} ads, {} trackers",
-                self.block_stats.page_ads_blocked,
-                self.block_stats.page_trackers_blocked));
-            ui.label(format!("Total: {} blocked",
-                self.block_stats.lifetime_total()));
+            ui.label(format!(
+                "Page: {} ads, {} trackers",
+                self.block_stats.page_ads_blocked, self.block_stats.page_trackers_blocked
+            ));
+            ui.label(format!(
+                "Total: {} blocked",
+                self.block_stats.lifetime_total()
+            ));
             if self.block_stats.data_saved_kb > 0.0 {
-                ui.label(format!("Data saved: {:.1} KB", self.block_stats.data_saved_kb));
+                ui.label(format!(
+                    "Data saved: {:.1} KB",
+                    self.block_stats.data_saved_kb
+                ));
             }
 
             ui.separator();
@@ -373,7 +393,13 @@ impl MobileUI {
     }
 
     /// Update block stats from engine
-    pub fn update_block_stats(&mut self, page_ads: usize, page_trackers: usize, total_ads: usize, total_trackers: usize) {
+    pub fn update_block_stats(
+        &mut self,
+        page_ads: usize,
+        page_trackers: usize,
+        total_ads: usize,
+        total_trackers: usize,
+    ) {
         self.block_stats.page_ads_blocked = page_ads;
         self.block_stats.page_trackers_blocked = page_trackers;
         self.block_stats.total_ads_blocked = total_ads;
@@ -395,6 +421,7 @@ pub struct ContentArea {
 
 impl MobileUI {
     /// Calculate the content area rect based on UI visibility state
+    #[must_use] 
     pub fn content_area(&self) -> ContentArea {
         let status_h = if self.status_bar_visible { 28.0 } else { 0.0 };
         let bottom_h = if self.bottom_bar_visible { 48.0 } else { 0.0 };

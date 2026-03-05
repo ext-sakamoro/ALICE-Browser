@@ -5,7 +5,6 @@
 /// - Floating: gentle sine-wave vertical drift
 /// - Ring Rotation: Torus axis slowly rotates
 /// - Ticker: headline texts flow around the outer Data Ring
-
 use crate::render::sdf_ui::{SdfPrimitive, SdfScene};
 
 /// Per-primitive animation metadata
@@ -47,7 +46,14 @@ pub struct OzAnimState {
     pub meta: Vec<OzAnimMeta>,
 }
 
+impl Default for OzAnimState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl OzAnimState {
+    #[must_use] 
     pub fn new() -> Self {
         Self { meta: Vec::new() }
     }
@@ -59,7 +65,8 @@ impl OzAnimState {
 
 /// Animate the OZ scene at time `t` (seconds since start).
 ///
-/// Returns a new SdfScene with updated positions.
+/// Returns a new `SdfScene` with updated positions.
+#[must_use] 
 pub fn animate_oz(
     base_scene: &SdfScene,
     state: &OzAnimState,
@@ -104,16 +111,11 @@ pub fn animate_oz(
                     i,
                 );
 
-                let new_center = [
-                    parent[0] + lx,
-                    parent[1] + ly + float_y,
-                    parent[2] + lz,
-                ];
+                let new_center = [parent[0] + lx, parent[1] + ly + float_y, parent[2] + lz];
                 animated_centers[i] = Some(new_center);
 
-                match prims[i] {
-                    SdfPrimitive::Sphere { ref mut center, .. } => *center = new_center,
-                    _ => {}
+                if let SdfPrimitive::Sphere { ref mut center, .. } = prims[i] {
+                    *center = new_center;
                 }
             }
             AnimKind::Ring => {
@@ -138,8 +140,7 @@ pub fn animate_oz(
                     axis[0] = (base_incl + wobble).sin();
                     axis[1] = (base_incl + wobble).cos();
                     axis[2] = (wobble * 0.3).sin() * 0.2;
-                    let len =
-                        (axis[0] * axis[0] + axis[1] * axis[1] + axis[2] * axis[2]).sqrt();
+                    let len = (axis[0] * axis[0] + axis[1] * axis[1] + axis[2] * axis[2]).sqrt();
                     if len > 0.001 {
                         axis[0] /= len;
                         axis[1] /= len;
@@ -163,26 +164,20 @@ pub fn animate_oz(
                     );
                     *start = parent;
 
-                    if let Some(child_pos) =
-                        animated_centers.get(child_index).and_then(|c| *c)
-                    {
+                    if let Some(child_pos) = animated_centers.get(child_index).and_then(|c| *c) {
                         *end = child_pos;
                     }
                 }
             }
             AnimKind::Label { body_index } => {
-                if let Some(body_pos) =
-                    animated_centers.get(body_index).and_then(|c| *c)
-                {
-                    match prims[i] {
-                        SdfPrimitive::Billboard {
-                            ref mut position, ..
-                        } => {
-                            position[0] = body_pos[0];
-                            position[1] = body_pos[1] + 0.12;
-                            position[2] = body_pos[2];
-                        }
-                        _ => {}
+                if let Some(body_pos) = animated_centers.get(body_index).and_then(|c| *c) {
+                    if let SdfPrimitive::Billboard {
+                        ref mut position, ..
+                    } = prims[i]
+                    {
+                        position[0] = body_pos[0];
+                        position[1] = body_pos[1] + 0.12;
+                        position[2] = body_pos[2];
                     }
                 }
             }
@@ -194,15 +189,13 @@ pub fn animate_oz(
                 let hx = ring_radius * angle.cos();
                 let hz = ring_radius * angle.sin();
 
-                match prims[i] {
-                    SdfPrimitive::Billboard {
-                        ref mut position, ..
-                    } => {
-                        position[0] = hx;
-                        position[1] = float_y; // gentle float
-                        position[2] = hz;
-                    }
-                    _ => {}
+                if let SdfPrimitive::Billboard {
+                    ref mut position, ..
+                } = prims[i]
+                {
+                    position[0] = hx;
+                    position[1] = float_y; // gentle float
+                    position[2] = hz;
                 }
                 animated_centers[i] = Some([hx, float_y, hz]);
             }
@@ -215,7 +208,7 @@ pub fn animate_oz(
     }
 }
 
-/// Resolve the animated parent center. Falls back to static parent_center.
+/// Resolve the animated parent center. Falls back to static `parent_center`.
 fn resolve_parent_center(
     static_parent: [f32; 3],
     animated: &[Option<[f32; 3]>],

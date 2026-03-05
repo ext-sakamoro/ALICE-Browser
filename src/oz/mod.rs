@@ -12,7 +12,7 @@ use alice_browser::render::stream::TextMeta;
 /// Preview data fetched for a grabbed OZ-mode link.
 #[derive(Clone)]
 pub struct LinkPreview {
-    pub url: String,
+    pub _url: String,
     pub title: String,
     pub description: String,
     pub texts: Vec<String>,
@@ -142,8 +142,8 @@ pub fn extract_prefetch_texts(node: &DomNode, out: &mut Vec<TextMeta>, depth: us
 /// Fetch a URL and extract preview info (title + description + key texts).
 /// Intended to run in a background thread.
 pub fn fetch_link_preview(url: &str) -> LinkPreview {
-    use alice_browser::net::fetch::fetch_url;
     use alice_browser::dom::parser::parse_html;
+    use alice_browser::net::fetch::fetch_url;
 
     match fetch_url(url) {
         Ok(result) => {
@@ -179,7 +179,7 @@ pub fn fetch_link_preview(url: &str) -> LinkPreview {
             }
 
             LinkPreview {
-                url: url.to_string(),
+                _url: url.to_string(),
                 title,
                 description,
                 texts,
@@ -187,7 +187,7 @@ pub fn fetch_link_preview(url: &str) -> LinkPreview {
             }
         }
         Err(e) => LinkPreview {
-            url: url.to_string(),
+            _url: url.to_string(),
             title: String::new(),
             description: String::new(),
             texts: Vec::new(),
@@ -221,8 +221,8 @@ fn extract_meta_description(node: &DomNode) -> String {
     if node.tag == "meta" {
         let name = node.attributes.get("name").map(|s| s.to_lowercase());
         let property = node.attributes.get("property").map(|s| s.to_lowercase());
-        let is_desc = name.as_deref() == Some("description")
-            || property.as_deref() == Some("og:description");
+        let is_desc =
+            name.as_deref() == Some("description") || property.as_deref() == Some("og:description");
         if is_desc {
             if let Some(content) = node.attributes.get("content") {
                 let trimmed = content.trim();

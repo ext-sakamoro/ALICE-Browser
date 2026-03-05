@@ -1,12 +1,25 @@
+#![allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_possible_wrap,
+    clippy::cast_precision_loss,
+    clippy::cast_sign_loss,
+    clippy::cast_lossless,
+    clippy::similar_names,
+    clippy::many_single_char_names,
+    clippy::module_name_repetitions,
+    clippy::inline_always,
+    clippy::too_many_lines
+)]
+
 pub mod dom;
+pub mod engine;
 pub mod net;
 pub mod render;
-pub mod engine;
 
 // Deep-Fried Rust: カリッカリ最適化モジュール
-pub mod simd;
 pub mod branchless;
 pub mod fast_math;
+pub mod simd;
 
 // Mobile UI (always compiled, feature-gated internally where needed)
 pub mod mobile;

@@ -2,7 +2,6 @@
 ///
 /// Blocks ads and trackers at the URL level before requests are made.
 /// Supports a subset of EasyList/AdBlock Plus filter syntax.
-
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
@@ -21,7 +20,14 @@ pub struct BlockStats {
     pub total_checked: Arc<AtomicUsize>,
 }
 
+impl Default for BlockStats {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl BlockStats {
+    #[must_use] 
     pub fn new() -> Self {
         Self {
             page_ads: Arc::new(AtomicUsize::new(0)),
@@ -51,10 +57,12 @@ impl BlockStats {
         self.total_checked.fetch_add(1, Ordering::Relaxed);
     }
 
+    #[must_use] 
     pub fn page_blocked(&self) -> usize {
         self.page_ads.load(Ordering::Relaxed) + self.page_trackers.load(Ordering::Relaxed)
     }
 
+    #[must_use] 
     pub fn total_blocked(&self) -> usize {
         self.total_ads.load(Ordering::Relaxed) + self.total_trackers.load(Ordering::Relaxed)
     }
@@ -67,7 +75,7 @@ pub enum BlockReason {
     Tracker,
 }
 
-/// A single filter rule parsed from EasyList format.
+/// A single filter rule parsed from `EasyList` format.
 #[derive(Debug, Clone)]
 enum FilterRule {
     /// Domain-level block: ||example.com^
@@ -86,8 +94,15 @@ pub struct AdBlockEngine {
     pub stats: BlockStats,
 }
 
+impl Default for AdBlockEngine {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AdBlockEngine {
     /// Create a new engine with built-in rules.
+    #[must_use] 
     pub fn new() -> Self {
         let mut engine = Self {
             domain_blocks: Vec::new(),
@@ -129,8 +144,7 @@ impl AdBlockEngine {
         }
 
         // Domain rules: ||domain.com^
-        if line.starts_with("||") {
-            let rest = &line[2..];
+        if let Some(rest) = line.strip_prefix("||") {
             let domain = rest.split('^').next().unwrap_or(rest);
             let domain = domain.split('$').next().unwrap_or(domain);
             if !domain.is_empty() {
@@ -155,6 +169,7 @@ impl AdBlockEngine {
     }
 
     /// Check if a URL should be blocked.
+    #[must_use] 
     pub fn should_block(&self, url: &str) -> Option<BlockReason> {
         self.stats.record_check();
 
@@ -172,7 +187,7 @@ impl AdBlockEngine {
 
         // Check domain blocks
         for blocked_domain in &self.domain_blocks {
-            if domain == *blocked_domain || domain.ends_with(&format!(".{}", blocked_domain)) {
+            if domain == *blocked_domain || domain.ends_with(&format!(".{blocked_domain}")) {
                 let reason = classify_block_reason(blocked_domain);
                 match reason {
                     BlockReason::Ad => self.stats.record_ad(),
@@ -333,6 +348,7 @@ impl AdBlockEngine {
     }
 
     /// Number of loaded rules.
+    #[must_use] 
     pub fn rule_count(&self) -> usize {
         self.domain_blocks.len() + self.substring_blocks.len() + self.exceptions.len()
     }
@@ -352,13 +368,35 @@ fn extract_domain(url: &str) -> String {
 /// Classify whether a matched pattern is ad or tracker.
 fn classify_block_reason(pattern: &str) -> BlockReason {
     let tracker_keywords = [
-        "analytics", "tracker", "tracking", "pixel", "beacon",
-        "collect", "pageview", "telemetry", "metrics", "sentry",
-        "bugsnag", "rollbar", "hotjar", "mixpanel", "segment",
-        "amplitude", "fullstory", "mouseflow", "crazyegg",
-        "optimizely", "newrelic", "quantserve", "scorecard",
-        "bluekai", "exelator", "facebook.net", "facebook.com/tr",
-        "matomo", "piwik",
+        "analytics",
+        "tracker",
+        "tracking",
+        "pixel",
+        "beacon",
+        "collect",
+        "pageview",
+        "telemetry",
+        "metrics",
+        "sentry",
+        "bugsnag",
+        "rollbar",
+        "hotjar",
+        "mixpanel",
+        "segment",
+        "amplitude",
+        "fullstory",
+        "mouseflow",
+        "crazyegg",
+        "optimizely",
+        "newrelic",
+        "quantserve",
+        "scorecard",
+        "bluekai",
+        "exelator",
+        "facebook.net",
+        "facebook.com/tr",
+        "matomo",
+        "piwik",
     ];
 
     for kw in &tracker_keywords {
@@ -377,8 +415,12 @@ mod tests {
     #[test]
     fn test_builtin_blocks() {
         let engine = AdBlockEngine::new();
-        assert!(engine.should_block("https://doubleclick.net/ad.js").is_some());
-        assert!(engine.should_block("https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js").is_some());
+        assert!(engine
+            .should_block("https://doubleclick.net/ad.js")
+            .is_some());
+        assert!(engine
+            .should_block("https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js")
+            .is_some());
         assert!(engine.should_block("https://example.com/page").is_none());
     }
 
@@ -419,14 +461,21 @@ mod tests {
 example.com##.ad-banner
 "#;
         engine.load_rules(rules);
-        assert!(engine.should_block("https://evil-ads.com/banner.js").is_some());
+        assert!(engine
+            .should_block("https://evil-ads.com/banner.js")
+            .is_some());
         assert!(engine.should_block("https://sub.evil-ads.com/x").is_some());
-        assert!(engine.should_block("https://allowed-ads.com/ad.js").is_none());
+        assert!(engine
+            .should_block("https://allowed-ads.com/ad.js")
+            .is_none());
     }
 
     #[test]
     fn test_extract_domain() {
-        assert_eq!(extract_domain("https://www.example.com/path"), "www.example.com");
+        assert_eq!(
+            extract_domain("https://www.example.com/path"),
+            "www.example.com"
+        );
         assert_eq!(extract_domain("http://test.org:8080/x"), "test.org");
     }
 }

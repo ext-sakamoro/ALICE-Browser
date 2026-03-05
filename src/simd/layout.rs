@@ -1,13 +1,13 @@
 //! SIMD-Accelerated Layout Computation
 //!
-//! Traditional layout: process nodes one-by-one, accumulating cursor_y.
+//! Traditional layout: process nodes one-by-one, accumulating `cursor_y`.
 //! SIMD layout: batch-compute margins, paddings, and text heights for 8 nodes.
 //!
 //! Key optimizations:
-//! - SoA layout boxes (x[], y[], w[], h[] instead of Vec<Box{x,y,w,h}>)
+//! - `SoA` layout boxes (x[], y[], w[], h[] instead of Vec<Box{x,y,w,h}>)
 //! - SIMD margin/padding computation (8 nodes at once)
-//! - Division exorcism: chars_per_line uses multiplication by reciprocal
-//! - Branchless max() for clamping
+//! - Division exorcism: `chars_per_line` uses multiplication by reciprocal
+//! - Branchless `max()` for clamping
 
 use super::F32x8;
 use crate::dom::{Classification, DomNode, NodeType};
@@ -15,22 +15,27 @@ use crate::dom::{Classification, DomNode, NodeType};
 /// Pre-computed reciprocals for Division Exorcism.
 /// These are computed once and reused across all layout passes.
 pub struct LayoutConstants {
-    /// 1.0 / 0.6 — for chars_per_line calculation (font_size * 0.6)
+    /// 1.0 / 0.6 — for `chars_per_line` calculation (`font_size` * 0.6)
     pub inv_char_width_factor: f32,
     /// Line height multiplier (1.4)
     pub line_height_factor: f32,
-    /// 1.0 / viewport_width — for normalization
+    /// 1.0 / `viewport_width` — for normalization
     pub inv_viewport: f32,
 }
 
 impl LayoutConstants {
     #[inline]
+    #[must_use] 
     pub fn new(viewport_width: f32) -> Self {
         Self {
             inv_char_width_factor: 1.0 / 0.6,
             line_height_factor: 1.4,
             // Division exorcism: pre-compute reciprocal
-            inv_viewport: if viewport_width > 0.0 { 1.0 / viewport_width } else { 0.0 },
+            inv_viewport: if viewport_width > 0.0 {
+                1.0 / viewport_width
+            } else {
+                0.0
+            },
         }
     }
 }
@@ -38,8 +43,9 @@ impl LayoutConstants {
 /// Batch-compute font sizes for 8 nodes using branchless selection.
 ///
 /// Instead of match tag { "h1" => 32.0, "h2" => 24.0, ... }
-/// we encode tag→font_size as SIMD comparison + blend.
+/// we encode `tag→font_size` as SIMD comparison + blend.
 #[inline]
+#[must_use] 
 pub fn batch_font_sizes(tag_types: &[i32], parent_size: f32) -> [f32; 8] {
     let mut sizes = [parent_size; 8];
 
@@ -89,7 +95,7 @@ fn font_size_lut(tag_type: i32, parent: f32) -> f32 {
     // This avoids an if/else branch.
     // lut_val + (parent - lut_val) * (lut_val == 0.0) as i32 as f32
     let is_zero = (lut_val == 0.0) as u32 as f32; // 1.0 if zero, 0.0 if nonzero
-    // FMA: lut_val + is_zero * (parent - lut_val) = lut_val * (1 - is_zero) + parent * is_zero
+                                                  // FMA: lut_val + is_zero * (parent - lut_val) = lut_val * (1 - is_zero) + parent * is_zero
     lut_val * (1.0 - is_zero) + parent * is_zero
 }
 
@@ -97,6 +103,7 @@ fn font_size_lut(tag_type: i32, parent: f32) -> f32 {
 ///
 /// Uses the same LUT approach as font sizes.
 #[inline]
+#[must_use] 
 pub fn batch_margin_tops(tag_types: &[i32]) -> F32x8 {
     let mut v = [0.0f32; 8];
     for i in 0..8 {
@@ -107,6 +114,7 @@ pub fn batch_margin_tops(tag_types: &[i32]) -> F32x8 {
 
 /// Batch-compute margin bottoms for 8 nodes.
 #[inline]
+#[must_use] 
 pub fn batch_margin_bottoms(tag_types: &[i32]) -> F32x8 {
     let mut v = [0.0f32; 8];
     for i in 0..8 {
@@ -117,6 +125,7 @@ pub fn batch_margin_bottoms(tag_types: &[i32]) -> F32x8 {
 
 /// Batch-compute paddings for 8 nodes.
 #[inline]
+#[must_use] 
 pub fn batch_paddings(tag_types: &[i32]) -> F32x8 {
     let mut v = [0.0f32; 8];
     for i in 0..8 {
@@ -130,8 +139,9 @@ pub fn batch_paddings(tag_types: &[i32]) -> F32x8 {
 fn margin_top_lut(tag_type: i32) -> f32 {
     const LUT: [f32; 18] = [
         0.0, 4.0, 0.0, 0.0, 0.0, 12.0, 12.0, 12.0, // div,p,a,script,style,nav,header,footer
-        0.0, 0.0, 0.0, 20.0, 0.0, 8.0, 0.0, 16.0,   // interactive,media,iframe,heading,span,list,table,section
-        0.0, 0.0,                                       // text,other
+        0.0, 0.0, 0.0, 20.0, 0.0, 8.0, 0.0,
+        16.0, // interactive,media,iframe,heading,span,list,table,section
+        0.0, 0.0, // text,other
     ];
     LUT[(tag_type as usize).min(17)]
 }
@@ -140,9 +150,8 @@ fn margin_top_lut(tag_type: i32) -> f32 {
 #[inline(always)]
 fn margin_bottom_lut(tag_type: i32) -> f32 {
     const LUT: [f32; 18] = [
-        0.0, 10.0, 0.0, 0.0, 0.0, 12.0, 12.0, 12.0,
-        0.0, 0.0, 0.0, 12.0, 0.0, 8.0, 0.0, 16.0,
-        0.0, 0.0,
+        0.0, 10.0, 0.0, 0.0, 0.0, 12.0, 12.0, 12.0, 0.0, 0.0, 0.0, 12.0, 0.0, 8.0, 0.0, 16.0, 0.0,
+        0.0,
     ];
     LUT[(tag_type as usize).min(17)]
 }
@@ -151,8 +160,8 @@ fn margin_bottom_lut(tag_type: i32) -> f32 {
 #[inline(always)]
 fn padding_lut(tag_type: i32) -> f32 {
     const LUT: [f32; 18] = [
-        4.0, 4.0, 0.0, 0.0, 0.0, 12.0, 12.0, 12.0,  // div→4,p→4,a→0,...
-        4.0, 0.0, 0.0, 4.0, 0.0, 4.0, 4.0, 16.0,     // interactive→4,...,section→16
+        4.0, 4.0, 0.0, 0.0, 0.0, 12.0, 12.0, 12.0, // div→4,p→4,a→0,...
+        4.0, 0.0, 0.0, 4.0, 0.0, 4.0, 4.0, 16.0, // interactive→4,...,section→16
         0.0, 0.0,
     ];
     LUT[(tag_type as usize).min(17)]
@@ -160,22 +169,19 @@ fn padding_lut(tag_type: i32) -> f32 {
 
 /// Compute text height for a batch of 8 nodes.
 ///
-/// text_height = ceil(text_len / chars_per_line) * line_height
+/// `text_height` = `ceil(text_len` / `chars_per_line`) * `line_height`
 ///
 /// Division exorcism:
-///   chars_per_line = available_width / (font_size * 0.6)
-///   → chars_per_line = available_width * inv_char_width_factor / font_size
-///   → But we need 1/chars_per_line for the division:
-///   → inv_cpl = font_size * 0.6 / available_width = font_size * 0.6 * inv_viewport
+///   `chars_per_line` = `available_width` / (`font_size` * 0.6)
+///   → `chars_per_line` = `available_width` * `inv_char_width_factor` / `font_size`
+///   → But we need `1/chars_per_line` for the division:
+///   → `inv_cpl` = `font_size` * 0.6 / `available_width` = `font_size` * 0.6 * `inv_viewport`
 ///
-/// So: lines = text_len * inv_cpl = text_len * font_size * 0.6 * inv_viewport
+/// So: lines = `text_len` * `inv_cpl` = `text_len` * `font_size` * 0.6 * `inv_viewport`
 /// No division at all!
 #[inline]
-pub fn batch_text_heights(
-    text_lens: &[f32; 8],
-    font_sizes: &[f32; 8],
-    inv_viewport: f32,
-) -> F32x8 {
+#[must_use] 
+pub fn batch_text_heights(text_lens: &[f32; 8], font_sizes: &[f32; 8], inv_viewport: f32) -> F32x8 {
     let inv_vp = F32x8::splat(inv_viewport);
     let char_factor = F32x8::splat(0.6);
     let line_factor = F32x8::splat(1.4);
@@ -205,11 +211,9 @@ pub fn batch_text_heights(
 ///
 /// This processes sequential sibling nodes in batches of 8.
 /// For nested layouts, the tree structure still requires sequential
-/// cursor_y accumulation, but within each level, siblings can be batched.
-pub fn compute_layout_simd(
-    nodes: &[FlatNode],
-    viewport_width: f32,
-) -> Vec<ComputedBox> {
+/// `cursor_y` accumulation, but within each level, siblings can be batched.
+#[must_use] 
+pub fn compute_layout_simd(nodes: &[FlatNode], viewport_width: f32) -> Vec<ComputedBox> {
     let consts = LayoutConstants::new(viewport_width);
     let count = nodes.len();
     let mut results = Vec::with_capacity(count);
@@ -354,8 +358,8 @@ pub fn flatten_dom(node: &DomNode, depth: usize, out: &mut Vec<FlatNode>) {
         tag: node.tag.clone(),
         text: node.text.clone(),
         href: match node.tag.as_str() {
-            "a" => node.attr("href").map(|s| s.to_string()),
-            "img" => node.attr("src").map(|s| s.to_string()),
+            "a" => node.attr("href").map(std::string::ToString::to_string),
+            "img" => node.attr("src").map(std::string::ToString::to_string),
             _ => None,
         },
     });
@@ -368,11 +372,39 @@ pub fn flatten_dom(node: &DomNode, depth: usize, out: &mut Vec<FlatNode>) {
 }
 
 fn is_block_tag(tag: &str) -> bool {
-    matches!(tag,
-        "html" | "body" | "div" | "p" | "h1" | "h2" | "h3" | "h4" | "h5" | "h6"
-        | "ul" | "ol" | "li" | "table" | "tr" | "td" | "th" | "form"
-        | "section" | "article" | "aside" | "main" | "header" | "footer" | "nav"
-        | "blockquote" | "pre" | "figure" | "figcaption" | "details" | "summary"
+    matches!(
+        tag,
+        "html"
+            | "body"
+            | "div"
+            | "p"
+            | "h1"
+            | "h2"
+            | "h3"
+            | "h4"
+            | "h5"
+            | "h6"
+            | "ul"
+            | "ol"
+            | "li"
+            | "table"
+            | "tr"
+            | "td"
+            | "th"
+            | "form"
+            | "section"
+            | "article"
+            | "aside"
+            | "main"
+            | "header"
+            | "footer"
+            | "nav"
+            | "blockquote"
+            | "pre"
+            | "figure"
+            | "figcaption"
+            | "details"
+            | "summary"
     )
 }
 
@@ -383,8 +415,8 @@ mod tests {
     #[test]
     fn test_font_size_lut() {
         assert!((font_size_lut(11, 16.0) - 24.0).abs() < 1e-6); // heading
-        assert!((font_size_lut(0, 16.0) - 16.0).abs() < 1e-6);  // div → parent
-        assert!((font_size_lut(1, 14.0) - 14.0).abs() < 1e-6);  // p → parent
+        assert!((font_size_lut(0, 16.0) - 16.0).abs() < 1e-6); // div → parent
+        assert!((font_size_lut(1, 14.0) - 14.0).abs() < 1e-6); // p → parent
     }
 
     #[test]

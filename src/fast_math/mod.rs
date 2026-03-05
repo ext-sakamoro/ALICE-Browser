@@ -5,13 +5,13 @@
 //! ## Division Exorcism (除算排除)
 //! Division is 10-20x slower than multiplication.
 //!   x / k  →  x * (1.0/k)   (pre-compute reciprocal)
-//!   x / y  →  x * fast_rcp(y) (approximate reciprocal, 1 cycle vs 20)
+//!   x / y  →  x * `fast_rcp(y)` (approximate reciprocal, 1 cycle vs 20)
 //!
 //! ## FMA (Fused Multiply-Add)
 //! a * b + c in 1 instruction instead of 2 (also reduces rounding error).
 //!
 //! ## Sqrt Elimination
-//! length() requires sqrt. length_squared() doesn't.
+//! `length()` requires sqrt. `length_squared()` doesn't.
 //! For comparisons: |a| < |b|  ↔  a² < b²  (no sqrt needed)
 //!
 //! ## Fast Inverse Square Root
@@ -58,6 +58,7 @@ pub const RECIPROCALS: Reciprocals = Reciprocals {
 /// Accuracy: ~23 bits (sufficient for layout/rendering, NOT for scientific computing)
 /// Speed: ~4 cycles vs ~20 for hardware division
 #[inline(always)]
+#[must_use] 
 pub fn fast_rcp(x: f32) -> f32 {
     #[cfg(target_arch = "x86_64")]
     // SAFETY: SSE support is checked at runtime via is_x86_feature_detected!.
@@ -88,6 +89,7 @@ pub fn fast_rcp(x: f32) -> f32 {
 /// Accuracy: ~0.17% error (perfect for layout, rendering, collision)
 /// Speed: ~5 cycles vs ~25 for sqrt + div
 #[inline(always)]
+#[must_use] 
 pub fn fast_inv_sqrt(x: f32) -> f32 {
     #[cfg(target_arch = "x86_64")]
     // SAFETY: SSE support is checked at runtime via is_x86_feature_detected!.
@@ -103,17 +105,18 @@ pub fn fast_inv_sqrt(x: f32) -> f32 {
     // Quake III fast inverse sqrt
     let half_x = 0.5 * x;
     let mut i = x.to_bits();
-    i = 0x5f3759df - (i >> 1); // Magic!
+    i = 0x5f37_59df - (i >> 1); // Magic!
     let y = f32::from_bits(i);
     // One Newton-Raphson step
     y * (1.5 - half_x * y * y)
 }
 
-/// Fast approximate square root using fast_inv_sqrt.
+/// Fast approximate square root using `fast_inv_sqrt`.
 /// sqrt(x) = x * (1/sqrt(x))
 ///
 /// Avoids the slow hardware sqrt instruction.
 #[inline(always)]
+#[must_use] 
 pub fn fast_sqrt(x: f32) -> f32 {
     if x <= 0.0 {
         return 0.0;
@@ -128,6 +131,7 @@ pub fn fast_sqrt(x: f32) -> f32 {
 /// 1. Speed: 1 cycle latency instead of 2
 /// 2. Precision: only 1 rounding step instead of 2
 #[inline(always)]
+#[must_use] 
 pub fn fma(a: f32, b: f32, c: f32) -> f32 {
     // std::intrinsics::fmaf32 is not stable; use the mul_add method
     a.mul_add(b, c)
@@ -136,6 +140,7 @@ pub fn fma(a: f32, b: f32, c: f32) -> f32 {
 /// FMA chain: a * b + c * d
 /// = fma(a, b, c * d)
 #[inline(always)]
+#[must_use] 
 pub fn fma_chain(a: f32, b: f32, c: f32, d: f32) -> f32 {
     a.mul_add(b, c * d)
 }
@@ -143,15 +148,16 @@ pub fn fma_chain(a: f32, b: f32, c: f32, d: f32) -> f32 {
 /// Squared distance (no sqrt needed for comparisons).
 ///
 /// Instead of:
-///   let dist = ((x2-x1)² + (y2-y1)²).sqrt();
+///   let dist = ((x2-x1)² + (`y2-y1)²).sqrt()`;
 ///   if dist < threshold { ... }
 ///
 /// Use:
-///   let dist_sq = distance_squared(x1,y1,x2,y2);
-///   if dist_sq < threshold * threshold { ... }
+///   let `dist_sq` = `distance_squared(x1,y1,x2,y2)`;
+///   if `dist_sq` < threshold * threshold { ... }
 ///
 /// Saves one sqrt (25 cycles) per comparison.
 #[inline(always)]
+#[must_use] 
 pub fn distance_squared(x1: f32, y1: f32, x2: f32, y2: f32) -> f32 {
     let dx = x2 - x1;
     let dy = y2 - y1;
@@ -160,6 +166,7 @@ pub fn distance_squared(x1: f32, y1: f32, x2: f32, y2: f32) -> f32 {
 
 /// Length squared of a 2D vector (no sqrt)
 #[inline(always)]
+#[must_use] 
 pub fn length_squared(x: f32, y: f32) -> f32 {
     fma(x, x, y * y)
 }
@@ -167,6 +174,7 @@ pub fn length_squared(x: f32, y: f32) -> f32 {
 /// Linear interpolation using FMA for precision.
 /// lerp(a, b, t) = a + t * (b - a) = fma(t, b-a, a)
 #[inline(always)]
+#[must_use] 
 pub fn lerp(a: f32, b: f32, t: f32) -> f32 {
     fma(t, b - a, a)
 }
@@ -190,8 +198,9 @@ pub fn batch_fma(data: &mut [f32], a: f32, b: f32) {
 }
 
 /// Convert degrees to radians using reciprocal multiplication.
-/// deg * (π/180) = deg * π * inv_180
+/// deg * (π/180) = deg * π * `inv_180`
 #[inline(always)]
+#[must_use] 
 pub fn deg_to_rad(deg: f32) -> f32 {
     deg * std::f32::consts::PI * RECIPROCALS.inv_180
 }
@@ -199,6 +208,7 @@ pub fn deg_to_rad(deg: f32) -> f32 {
 /// Normalize a value from [0, max] to [0.0, 1.0] using reciprocal.
 /// val / max → val * (1/max)
 #[inline(always)]
+#[must_use] 
 pub fn normalize(val: f32, inv_max: f32) -> f32 {
     val * inv_max
 }

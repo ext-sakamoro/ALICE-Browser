@@ -3,13 +3,12 @@
 /// Defines the data model for Multi-channel Signed Distance Field font rendering.
 /// Actual GPU rendering is handled by the shader pipeline; this module provides
 /// layout computation and glyph metadata.
-
 /// A single glyph in the MSDF atlas.
 #[derive(Debug, Clone, Copy)]
 pub struct MsdfGlyph {
     /// Unicode codepoint
     pub codepoint: char,
-    /// UV coordinates in the atlas texture [u_min, v_min, u_max, v_max]
+    /// UV coordinates in the atlas texture [`u_min`, `v_min`, `u_max`, `v_max`]
     pub uv: [f32; 4],
     /// Horizontal advance (em units)
     pub advance: f32,
@@ -37,6 +36,7 @@ pub struct MsdfAtlas {
 impl MsdfAtlas {
     /// Create a default monospace-approximation atlas for basic ASCII.
     /// Real MSDF atlas would be loaded from a generated font texture.
+    #[must_use] 
     pub fn default_ascii() -> Self {
         let mut glyphs = Vec::with_capacity(96);
         for i in 32u8..=126 {
@@ -68,6 +68,7 @@ impl MsdfAtlas {
     }
 
     /// Look up a glyph by character.
+    #[must_use] 
     pub fn glyph(&self, ch: char) -> Option<&MsdfGlyph> {
         self.glyphs.iter().find(|g| g.codepoint == ch)
     }
@@ -95,7 +96,7 @@ pub struct TextQuad {
     pub center: [f32; 3],
     /// Size of the quad [width, height] in world units
     pub size: [f32; 2],
-    /// UV coordinates in the atlas [u_min, v_min, u_max, v_max]
+    /// UV coordinates in the atlas [`u_min`, `v_min`, `u_max`, `v_max`]
     pub uv: [f32; 4],
     /// Color [r, g, b, a]
     pub color: [f32; 4],
@@ -105,10 +106,8 @@ pub struct TextQuad {
 ///
 /// Each character becomes a positioned quad with atlas UV coordinates.
 /// The text is laid out left-to-right starting from `origin`.
-pub fn generate_text_quads(
-    node: &SdfTextNode,
-    atlas: &MsdfAtlas,
-) -> Vec<TextQuad> {
+#[must_use] 
+pub fn generate_text_quads(node: &SdfTextNode, atlas: &MsdfAtlas) -> Vec<TextQuad> {
     let mut quads = Vec::with_capacity(node.text.len());
     let scale = node.font_size;
     let total_width: f32 = node

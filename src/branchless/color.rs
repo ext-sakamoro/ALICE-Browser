@@ -10,7 +10,7 @@
 //!
 //! Branchless approach:
 //!   Use a lookup table (LUT) indexed by byte value → 0 branches per character.
-//!   Or use arithmetic: offset = is_digit * (b - '0') + is_lower * (b - 'a' + 10) + is_upper * (b - 'A' + 10)
+//!   Or use arithmetic: offset = `is_digit` * (b - '0') + `is_lower` * (b - 'a' + 10) + `is_upper` * (b - 'A' + 10)
 
 /// RGBA color (0-255 per channel)
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -22,12 +22,28 @@ pub struct Rgba {
 }
 
 impl Rgba {
-    pub const BLACK: Self = Self { r: 0, g: 0, b: 0, a: 255 };
-    pub const WHITE: Self = Self { r: 255, g: 255, b: 255, a: 255 };
-    pub const TRANSPARENT: Self = Self { r: 0, g: 0, b: 0, a: 0 };
+    pub const BLACK: Self = Self {
+        r: 0,
+        g: 0,
+        b: 0,
+        a: 255,
+    };
+    pub const WHITE: Self = Self {
+        r: 255,
+        g: 255,
+        b: 255,
+        a: 255,
+    };
+    pub const TRANSPARENT: Self = Self {
+        r: 0,
+        g: 0,
+        b: 0,
+        a: 0,
+    };
 
     /// Convert to normalized f32 (for rendering)
     #[inline(always)]
+    #[must_use] 
     pub fn to_f32(self) -> [f32; 4] {
         const INV_255: f32 = 1.0 / 255.0; // Division exorcism
         [
@@ -42,12 +58,12 @@ impl Rgba {
 /// Hex character → 4-bit value, BRANCHLESS.
 ///
 /// Uses arithmetic instead of if/else chains:
-///   is_digit = (b - '0') < 10           → 0 or 1
-///   is_lower = (b - 'a') < 6            → 0 or 1
-///   is_upper = (b - 'A') < 6            → 0 or 1
-///   value = is_digit * (b - '0')
-///         + is_lower * (b - 'a' + 10)
-///         + is_upper * (b - 'A' + 10)
+///   `is_digit` = (b - '0') < 10           → 0 or 1
+///   `is_lower` = (b - 'a') < 6            → 0 or 1
+///   `is_upper` = (b - 'A') < 6            → 0 or 1
+///   value = `is_digit` * (b - '0')
+///         + `is_lower` * (b - 'a' + 10)
+///         + `is_upper` * (b - 'A' + 10)
 ///
 /// Zero branches. Zero pipeline flushes. Pure arithmetic.
 #[inline(always)]
@@ -61,7 +77,8 @@ fn hex_digit_branchless(b: u8) -> u8 {
     let upper_val = b.wrapping_sub(b'A').wrapping_add(10);
 
     // Branchless select: exactly one of is_digit/is_lower/is_upper is 1
-    is_digit.wrapping_mul(digit_val)
+    is_digit
+        .wrapping_mul(digit_val)
         .wrapping_add(is_lower.wrapping_mul(lower_val))
         .wrapping_add(is_upper.wrapping_mul(upper_val))
 }
@@ -76,7 +93,8 @@ fn hex_byte_branchless(hi: u8, lo: u8) -> u8 {
 ///
 /// Supports: #RGB, #RRGGBB, #RGBA, #RRGGBBAA
 ///
-/// Returns Rgba::BLACK on invalid input (no error branch, just default).
+/// Returns `Rgba::BLACK` on invalid input (no error branch, just default).
+#[must_use] 
 pub fn parse_hex_color(s: &str) -> Rgba {
     let bytes = s.as_bytes();
 
@@ -142,10 +160,11 @@ pub fn parse_hex_color(s: &str) -> Rgba {
 
 /// Parse CSS named color branchlessly using a perfect hash.
 ///
-/// Instead of a HashMap or match chain, we use a minimal perfect hash:
-/// hash(name) % TABLE_SIZE → direct index into color table.
+/// Instead of a `HashMap` or match chain, we use a minimal perfect hash:
+/// hash(name) % `TABLE_SIZE` → direct index into color table.
 ///
 /// This is O(1) with zero branches (just arithmetic + table lookup).
+#[must_use] 
 pub fn parse_named_color(name: &str) -> Option<Rgba> {
     let lower = name.to_ascii_lowercase();
     let hash = color_name_hash(lower.as_bytes());
@@ -156,7 +175,7 @@ pub fn parse_named_color(name: &str) -> Option<Rgba> {
         Some(c)
     } else {
         // Linear probe (rare collision)
-        for &(n2, c2) in NAMED_COLORS.iter() {
+        for &(n2, c2) in NAMED_COLORS {
             if n2 == lower.as_str() {
                 return Some(c2);
             }
@@ -177,32 +196,217 @@ fn color_name_hash(bytes: &[u8]) -> u32 {
 
 /// Named CSS colors (most commonly used subset)
 const NAMED_COLORS: &[(&str, Rgba)] = &[
-    ("black", Rgba { r: 0, g: 0, b: 0, a: 255 }),
-    ("white", Rgba { r: 255, g: 255, b: 255, a: 255 }),
-    ("red", Rgba { r: 255, g: 0, b: 0, a: 255 }),
-    ("green", Rgba { r: 0, g: 128, b: 0, a: 255 }),
-    ("blue", Rgba { r: 0, g: 0, b: 255, a: 255 }),
-    ("yellow", Rgba { r: 255, g: 255, b: 0, a: 255 }),
-    ("cyan", Rgba { r: 0, g: 255, b: 255, a: 255 }),
-    ("magenta", Rgba { r: 255, g: 0, b: 255, a: 255 }),
-    ("gray", Rgba { r: 128, g: 128, b: 128, a: 255 }),
-    ("grey", Rgba { r: 128, g: 128, b: 128, a: 255 }),
-    ("orange", Rgba { r: 255, g: 165, b: 0, a: 255 }),
-    ("purple", Rgba { r: 128, g: 0, b: 128, a: 255 }),
-    ("pink", Rgba { r: 255, g: 192, b: 203, a: 255 }),
-    ("brown", Rgba { r: 165, g: 42, b: 42, a: 255 }),
-    ("transparent", Rgba { r: 0, g: 0, b: 0, a: 0 }),
-    ("navy", Rgba { r: 0, g: 0, b: 128, a: 255 }),
-    ("teal", Rgba { r: 0, g: 128, b: 128, a: 255 }),
-    ("olive", Rgba { r: 128, g: 128, b: 0, a: 255 }),
-    ("silver", Rgba { r: 192, g: 192, b: 192, a: 255 }),
-    ("maroon", Rgba { r: 128, g: 0, b: 0, a: 255 }),
-    ("lime", Rgba { r: 0, g: 255, b: 0, a: 255 }),
-    ("aqua", Rgba { r: 0, g: 255, b: 255, a: 255 }),
-    ("fuchsia", Rgba { r: 255, g: 0, b: 255, a: 255 }),
+    (
+        "black",
+        Rgba {
+            r: 0,
+            g: 0,
+            b: 0,
+            a: 255,
+        },
+    ),
+    (
+        "white",
+        Rgba {
+            r: 255,
+            g: 255,
+            b: 255,
+            a: 255,
+        },
+    ),
+    (
+        "red",
+        Rgba {
+            r: 255,
+            g: 0,
+            b: 0,
+            a: 255,
+        },
+    ),
+    (
+        "green",
+        Rgba {
+            r: 0,
+            g: 128,
+            b: 0,
+            a: 255,
+        },
+    ),
+    (
+        "blue",
+        Rgba {
+            r: 0,
+            g: 0,
+            b: 255,
+            a: 255,
+        },
+    ),
+    (
+        "yellow",
+        Rgba {
+            r: 255,
+            g: 255,
+            b: 0,
+            a: 255,
+        },
+    ),
+    (
+        "cyan",
+        Rgba {
+            r: 0,
+            g: 255,
+            b: 255,
+            a: 255,
+        },
+    ),
+    (
+        "magenta",
+        Rgba {
+            r: 255,
+            g: 0,
+            b: 255,
+            a: 255,
+        },
+    ),
+    (
+        "gray",
+        Rgba {
+            r: 128,
+            g: 128,
+            b: 128,
+            a: 255,
+        },
+    ),
+    (
+        "grey",
+        Rgba {
+            r: 128,
+            g: 128,
+            b: 128,
+            a: 255,
+        },
+    ),
+    (
+        "orange",
+        Rgba {
+            r: 255,
+            g: 165,
+            b: 0,
+            a: 255,
+        },
+    ),
+    (
+        "purple",
+        Rgba {
+            r: 128,
+            g: 0,
+            b: 128,
+            a: 255,
+        },
+    ),
+    (
+        "pink",
+        Rgba {
+            r: 255,
+            g: 192,
+            b: 203,
+            a: 255,
+        },
+    ),
+    (
+        "brown",
+        Rgba {
+            r: 165,
+            g: 42,
+            b: 42,
+            a: 255,
+        },
+    ),
+    (
+        "transparent",
+        Rgba {
+            r: 0,
+            g: 0,
+            b: 0,
+            a: 0,
+        },
+    ),
+    (
+        "navy",
+        Rgba {
+            r: 0,
+            g: 0,
+            b: 128,
+            a: 255,
+        },
+    ),
+    (
+        "teal",
+        Rgba {
+            r: 0,
+            g: 128,
+            b: 128,
+            a: 255,
+        },
+    ),
+    (
+        "olive",
+        Rgba {
+            r: 128,
+            g: 128,
+            b: 0,
+            a: 255,
+        },
+    ),
+    (
+        "silver",
+        Rgba {
+            r: 192,
+            g: 192,
+            b: 192,
+            a: 255,
+        },
+    ),
+    (
+        "maroon",
+        Rgba {
+            r: 128,
+            g: 0,
+            b: 0,
+            a: 255,
+        },
+    ),
+    (
+        "lime",
+        Rgba {
+            r: 0,
+            g: 255,
+            b: 0,
+            a: 255,
+        },
+    ),
+    (
+        "aqua",
+        Rgba {
+            r: 0,
+            g: 255,
+            b: 255,
+            a: 255,
+        },
+    ),
+    (
+        "fuchsia",
+        Rgba {
+            r: 255,
+            g: 0,
+            b: 255,
+            a: 255,
+        },
+    ),
 ];
 
-/// Parse any CSS color value (hex, named, rgb(), rgba())
+/// Parse any CSS color value (hex, named, `rgb()`, `rgba()`)
+#[must_use] 
 pub fn parse_css_color(value: &str) -> Rgba {
     let trimmed = value.trim();
 
@@ -264,41 +468,229 @@ mod tests {
     #[test]
     fn test_parse_hex_rgb() {
         let c = parse_hex_color("#FF8800");
-        assert_eq!(c, Rgba { r: 255, g: 136, b: 0, a: 255 });
+        assert_eq!(
+            c,
+            Rgba {
+                r: 255,
+                g: 136,
+                b: 0,
+                a: 255
+            }
+        );
     }
 
     #[test]
     fn test_parse_hex_short() {
         let c = parse_hex_color("#F80");
-        assert_eq!(c, Rgba { r: 255, g: 136, b: 0, a: 255 });
+        assert_eq!(
+            c,
+            Rgba {
+                r: 255,
+                g: 136,
+                b: 0,
+                a: 255
+            }
+        );
     }
 
     #[test]
     fn test_parse_hex_rgba() {
         let c = parse_hex_color("#FF880080");
-        assert_eq!(c, Rgba { r: 255, g: 136, b: 0, a: 128 });
+        assert_eq!(
+            c,
+            Rgba {
+                r: 255,
+                g: 136,
+                b: 0,
+                a: 128
+            }
+        );
     }
 
     #[test]
     fn test_parse_named() {
-        assert_eq!(parse_named_color("red"), Some(Rgba { r: 255, g: 0, b: 0, a: 255 }));
-        assert_eq!(parse_named_color("RED"), Some(Rgba { r: 255, g: 0, b: 0, a: 255 }));
+        assert_eq!(
+            parse_named_color("red"),
+            Some(Rgba {
+                r: 255,
+                g: 0,
+                b: 0,
+                a: 255
+            })
+        );
+        assert_eq!(
+            parse_named_color("RED"),
+            Some(Rgba {
+                r: 255,
+                g: 0,
+                b: 0,
+                a: 255
+            })
+        );
         assert_eq!(parse_named_color("transparent"), Some(Rgba::TRANSPARENT));
     }
 
     #[test]
     fn test_parse_css_color() {
-        assert_eq!(parse_css_color("#F00"), Rgba { r: 255, g: 0, b: 0, a: 255 });
-        assert_eq!(parse_css_color("blue"), Rgba { r: 0, g: 0, b: 255, a: 255 });
-        assert_eq!(parse_css_color("rgb(128, 64, 32)"), Rgba { r: 128, g: 64, b: 32, a: 255 });
+        assert_eq!(
+            parse_css_color("#F00"),
+            Rgba {
+                r: 255,
+                g: 0,
+                b: 0,
+                a: 255
+            }
+        );
+        assert_eq!(
+            parse_css_color("blue"),
+            Rgba {
+                r: 0,
+                g: 0,
+                b: 255,
+                a: 255
+            }
+        );
+        assert_eq!(
+            parse_css_color("rgb(128, 64, 32)"),
+            Rgba {
+                r: 128,
+                g: 64,
+                b: 32,
+                a: 255
+            }
+        );
     }
 
     #[test]
     fn test_rgba_to_f32() {
-        let c = Rgba { r: 255, g: 128, b: 0, a: 255 };
+        let c = Rgba {
+            r: 255,
+            g: 128,
+            b: 0,
+            a: 255,
+        };
         let f = c.to_f32();
         assert!((f[0] - 1.0).abs() < 0.01);
         assert!((f[1] - 0.502).abs() < 0.01);
         assert!((f[2] - 0.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_parse_hex_invalid_empty() {
+        assert_eq!(parse_hex_color(""), Rgba::BLACK);
+        assert_eq!(parse_hex_color("not a color"), Rgba::BLACK);
+        assert_eq!(parse_hex_color("#"), Rgba::BLACK);
+        assert_eq!(parse_hex_color("#1"), Rgba::BLACK);
+    }
+
+    #[test]
+    fn test_parse_hex_short_rgba() {
+        // #RGBA format: #F80A
+        let c = parse_hex_color("#F80A");
+        assert_eq!(c.r, 0xFF);
+        assert_eq!(c.g, 0x88);
+        assert_eq!(c.b, 0x00);
+        assert_eq!(c.a, 0xAA);
+    }
+
+    #[test]
+    fn test_parse_named_case_insensitive() {
+        assert_eq!(
+            parse_named_color("Blue"),
+            Some(Rgba {
+                r: 0,
+                g: 0,
+                b: 255,
+                a: 255
+            })
+        );
+        assert_eq!(
+            parse_named_color("YELLOW"),
+            Some(Rgba {
+                r: 255,
+                g: 255,
+                b: 0,
+                a: 255
+            })
+        );
+        assert_eq!(
+            parse_named_color("Green"),
+            Some(Rgba {
+                r: 0,
+                g: 128,
+                b: 0,
+                a: 255
+            })
+        );
+    }
+
+    #[test]
+    fn test_parse_named_unknown() {
+        assert_eq!(parse_named_color("nonexistent"), None);
+        assert_eq!(parse_named_color(""), None);
+    }
+
+    #[test]
+    fn test_parse_rgb_functional() {
+        let c = parse_css_color("rgb(0, 128, 255)");
+        assert_eq!(
+            c,
+            Rgba {
+                r: 0,
+                g: 128,
+                b: 255,
+                a: 255
+            }
+        );
+    }
+
+    #[test]
+    fn test_parse_rgba_functional() {
+        let c = parse_css_color("rgba(100, 200, 50, 0.5)");
+        assert_eq!(c.r, 100);
+        assert_eq!(c.g, 200);
+        assert_eq!(c.b, 50);
+        assert_eq!(c.a, 127); // 0.5 * 255 = 127.5, truncated to 127
+    }
+
+    #[test]
+    fn test_rgba_constants() {
+        assert_eq!(
+            Rgba::BLACK,
+            Rgba {
+                r: 0,
+                g: 0,
+                b: 0,
+                a: 255
+            }
+        );
+        assert_eq!(
+            Rgba::WHITE,
+            Rgba {
+                r: 255,
+                g: 255,
+                b: 255,
+                a: 255
+            }
+        );
+        assert_eq!(
+            Rgba::TRANSPARENT,
+            Rgba {
+                r: 0,
+                g: 0,
+                b: 0,
+                a: 0
+            }
+        );
+    }
+
+    #[test]
+    fn test_rgba_to_f32_edge_cases() {
+        let black_f = Rgba::BLACK.to_f32();
+        assert!((black_f[0] - 0.0).abs() < 1e-6);
+        assert!((black_f[3] - 1.0).abs() < 0.01);
+
+        let transparent_f = Rgba::TRANSPARENT.to_f32();
+        assert!((transparent_f[3] - 0.0).abs() < 1e-6);
     }
 }
