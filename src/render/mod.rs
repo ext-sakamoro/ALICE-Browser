@@ -1,5 +1,8 @@
 pub mod animator;
+pub mod hot_reload;
+pub mod hyper_sdf;
 pub mod layout;
+pub mod persistent_map;
 pub mod sdf_paint;
 pub mod sdf_ui;
 pub mod spatial;
