@@ -37,6 +37,7 @@ ALICE-Browser is a next-generation web browser that replaces the traditional HTM
 - **Smart Cache**: Predictive caching via ALICE-Cache
 - **Full-Text Search**: FM-Index local search via ALICE-Search
 - **Telemetry**: Privacy-preserving analytics via ALICE-Analytics
+- **LOL DSL**: Law-Oriented Language parsing via ALICE-LOL (`parse_lol` helper, 120 constructs)
 - **Modular**: Each ALICE integration is an optional feature flag
 
 ## Feature Flags
@@ -53,6 +54,7 @@ ALICE-Browser is a next-generation web browser that replaces the traditional HTM
 | `sdf-web` | Web SDF scene evaluation | ALICE-SDF |
 | `voice-web` | Browser voice activity detection | ALICE-Voice |
 | `mobile` | Mobile optimized | Cache + Search |
+| `lol` | LOL DSL parsing (`parse_lol` helper) | ALICE-LOL |
 | `alice-full` | All ALICE features | All above |
 
 ## Quick Start
@@ -80,6 +82,7 @@ ALICE-Browser connects to other ALICE ecosystem crates via feature-gated bridge 
 |--------|---------|--------------|-------------|
 | `text_bridge` | `text` | [ALICE-Text](../ALICE-Text) | Advanced text shaping and rendering |
 | `cache_bridge` | `cache` | [ALICE-Cache](../ALICE-Cache) | DOM classification caching with FNV-1a content hashing |
+| `lol_bridge` | `lol` | [ALICE-LOL](https://github.com/ext-sakamoro/ALICE-LOL) | Law-Oriented Language DSL parsing (120 constructs) |
 
 ### Cache Bridge (feature: `cache`)
 
@@ -162,6 +165,33 @@ Browser voice activity detection and audio processing.
 - `downsample_to_16k()` — Resample to 16kHz for codec input
 
 Enable: `alice-browser = { features = ["voice-web"] }`
+
+### ALICE-LOL Bridge (feature: `lol`)
+
+Law-Oriented Language DSL parsing via the `parse_lol` helper. Exposes all 120 LOL constructs for semantic rule evaluation inside browser content pipelines (content policy enforcement, ad-blocker rules, navigation guards).
+
+```toml
+[dependencies]
+alice-browser = { path = "../ALICE-Browser", features = ["lol"] }
+```
+
+```rust
+use alice_browser::lol_bridge::parse_lol;
+
+// Parse a LOL DSL expression into a structured rule tree
+let rule = parse_lol("DENY url CONTAINS \"tracker.js\" AND method IS GET")?;
+
+// Evaluate against a request context
+if rule.eval(&request_ctx) {
+    // Block the request
+}
+```
+
+Enable: `alice-browser = { features = ["lol"] }`
+
+## Related Projects
+
+- [ALICE-LOL](https://github.com/ext-sakamoro/ALICE-LOL) — Law-Oriented Language DSL (120 constructs)
 
 ## License
 
