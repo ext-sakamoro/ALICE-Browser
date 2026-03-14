@@ -48,6 +48,15 @@ pub mod cdn_bridge;
 #[cfg(feature = "view-sdf")]
 pub mod view_bridge;
 
+/// LOL DSL テキストから `SdfNode` をパースする。
+///
+/// ブラウザ内でユーザーが LOL テキストを入力し、
+/// SDF レンダリングに渡すためのヘルパー。
+#[cfg(feature = "lol")]
+pub fn parse_lol(text: &str) -> Result<alice_sdf::SdfNode, String> {
+    alice_lol::runtime_parser::parse_lol(text).map_err(|e| format!("LOL parse error: {e}"))
+}
+
 #[cfg(feature = "sdf-web")]
 pub mod sdf_bridge;
 
