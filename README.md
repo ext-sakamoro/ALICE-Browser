@@ -195,12 +195,9 @@ Enable: `alice-browser = { features = ["lol"] }`
 
 ## License
 
-Licensed under either of:
+`LicenseRef-Proprietary`. The text is [LICENSE-Proprietary](LICENSE-Proprietary).
 
-- MIT License ([LICENSE-MIT](LICENSE-MIT))
-- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE))
-
-at your option.
+Enquiries: https://extoria.co.jp/
 
 ## Author
 

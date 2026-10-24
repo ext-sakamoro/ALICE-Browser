@@ -2,6 +2,12 @@
 
 All notable changes to ALICE-Browser will be documented in this file.
 
+## [Unreleased]
+
+### Changed
+
+- Licence: `MIT OR Apache-2.0` → `LicenseRef-Proprietary`
+
 ## [0.2.0] - 2026-02-23
 
 ### Added
