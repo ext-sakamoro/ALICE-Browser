@@ -1,6 +1,6 @@
 # ALICE Browser Mobile — 仕様書
 
-> ライセンス: この版から `LicenseRef-Proprietary` (条文は [LICENSE-Proprietary](LICENSE-Proprietary)) 本書の MIT / Apache 2.0 の記述 (§1、§7、§9、§10) はそれ以前の計画の記録
+> ライセンス: この版から `LicenseRef-Proprietary` (条文は [LICENSE-Proprietary](LICENSE-Proprietary)) 本書の MIT / Apache 2.0 の記述 (§1、§7、§10) はそれ以前の計画の記録
 
 ## 1. プロジェクト概要
 
@@ -331,45 +331,6 @@ Google Playは他アプリの広告をブロックするアプリを禁止して
 - 「ブラウザ」カテゴリで公開
 - 広告ブロックは「プライバシー保護機能」として説明
 - 他アプリへの干渉はしない設計
-
----
-
-## 9. ロードマップ
-
-### Phase 1: 基盤整備
-
-- [ ] ライセンスファイル (LICENSE-MIT, LICENSE-APACHE) 追加
-- [ ] モバイル用フィーチャーフラグ (`mobile`) 追加
-- [ ] 2D Flatモードの最適化（タッチ操作対応）
-- [ ] 広告フィルタリスト (EasyList) のパーサー実装
-- [ ] DNS レベルブロックの実装
-
-### Phase 2: Android版
-
-- [ ] Android ビルド環境構築 (cargo-ndk)
-- [ ] winit + egui の Android 動作確認
-- [ ] タッチ操作・ジェスチャー実装
-- [ ] モバイルUI (下部操作バー、フルスクリーン)
-- [ ] APK ビルド・テスト
-
-### Phase 3: 公開
-
-- [ ] GitHub リポジトリ公開 (MIT / Apache 2.0)
-- [ ] F-Droid 公開
-- [ ] Google Play 公開
-- [ ] 公式サイト・ランディングページ作成
-
-### Phase 4: iOS版
-
-- [ ] iOS ビルド環境構築 (cargo-lipo)
-- [ ] WebKit wrapper or 独自エンジンの方針決定
-- [ ] App Store 公開
-
-### Phase 5: ALICE連携
-
-- [ ] ALICE Swarm Manager との接続インターフェース
-- [ ] ページ分析結果の表示UI (セキュリティ警告等)
-- [ ] デスクトップ版 (3D/OZ) への導線UI
 
 ---
 
