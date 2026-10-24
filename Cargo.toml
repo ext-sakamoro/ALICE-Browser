@@ -2,7 +2,8 @@
 name = "alice-browser"
 version = "0.2.0"
 edition = "2021"
-license = "MIT OR Apache-2.0"
+license = "LicenseRef-Proprietary"
+publish = false
 description = "The Web Recompiled — Semantic browser powered by ALICE ecosystem. Deep-Fried Rust: SoA+SIMD, Branchless, FMA, Division Exorcism."
 repository = "https://github.com/ext-sakamoro/ALICE-Browser"
 keywords = ["browser", "sdf", "ternary", "simd", "mobile"]

@@ -1,5 +1,7 @@
 # ALICE Browser Mobile — 仕様書
 
+> ライセンス: この版から `LicenseRef-Proprietary` (条文は [LICENSE-Proprietary](LICENSE-Proprietary)) 本書の MIT / Apache 2.0 の記述 (§1、§7、§9、§10) はそれ以前の計画の記録
+
 ## 1. プロジェクト概要
 
 ALICE Browser Mobileは、広告・トラッカーを自動ブロックする軽量モバイルブラウザである。
@@ -256,6 +258,8 @@ cargo lipo --release --features "smart-cache,search,mobile"
 ---
 
 ## 7. ライセンス戦略
+
+> この版から `LicenseRef-Proprietary` 以下はそれ以前の計画
 
 ### 7.1 ALICE Browser (モバイル & デスクトップ)
 
