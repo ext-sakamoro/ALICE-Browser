@@ -1,6 +1,6 @@
 //! Mobile UI Components — Bottom Bar & Fullscreen Mode
 //!
-//! Mobile-first UI following `MOBILE_SPEC.md`:
+//! Mobile-first UI:
 //!
 //! ┌─────────────────────────┐
 //! │ [ブロック数: 12] [🔒]    │  ← Status bar (minimal, auto-hide)
