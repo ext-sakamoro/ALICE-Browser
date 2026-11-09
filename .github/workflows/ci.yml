@@ -25,6 +25,12 @@ jobs:
           repository: ext-sakamoro/ALICE-SDF
           path: ALICE-SDF
 
+      # The real ALICE-Analytics at main, so the telemetry feature is built and tested against it
+      - uses: actions/checkout@v5
+        with:
+          repository: ext-sakamoro/ALICE-Analytics
+          path: ALICE-Analytics
+
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
@@ -72,7 +78,6 @@ jobs:
           # Browser optional deps
           for crate_info in \
             "ALICE-ML:alice-ml" \
-            "ALICE-Analytics:alice-analytics" \
             "ALICE-Search:alice-search" \
             "ALICE-Text:alice-text" \
             "ALICE-CDN:alice-cdn"; do
@@ -100,6 +105,14 @@ jobs:
       - name: Test
         working-directory: ALICE-Browser
         run: cargo test --lib
+
+      - name: Clippy (telemetry)
+        working-directory: ALICE-Browser
+        run: cargo clippy --lib --profile test --no-default-features --features telemetry -- -D warnings
+
+      - name: Test (telemetry)
+        working-directory: ALICE-Browser
+        run: cargo test --lib --no-default-features --features telemetry
 
   fmt:
     name: Format
