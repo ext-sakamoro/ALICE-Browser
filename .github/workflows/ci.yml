@@ -26,6 +26,8 @@ jobs:
           path: ALICE-SDF
 
       # The real ALICE-Analytics at main, so the telemetry feature is built and tested against it
+      # (the lock CI generates then holds alice-det-math 0.6 through it beside 0.5.2 through ALICE-SDF;
+      # one generation once ALICE-SDF and ALICE-LOL move to 0.6 and both are taken from main)
       - uses: actions/checkout@v5
         with:
           repository: ext-sakamoro/ALICE-Analytics
