@@ -77,7 +77,7 @@ impl F32x8 {
         unsafe {
             if is_x86_feature_detected!("avx2") {
                 let v = core::arch::x86_64::_mm256_loadu_ps(slice.as_ptr());
-                return core::mem::transmute(v);
+                return core::mem::transmute::<core::arch::x86_64::__m256, Self>(v);
             }
         }
         // Fallback: scalar load
@@ -104,7 +104,7 @@ impl F32x8 {
             if is_x86_feature_detected!("avx2") {
                 core::arch::x86_64::_mm256_storeu_ps(
                     slice.as_mut_ptr(),
-                    core::mem::transmute(self),
+                    core::mem::transmute::<Self, core::arch::x86_64::__m256>(self),
                 );
                 return;
             }
@@ -124,7 +124,9 @@ impl F32x8 {
             if is_x86_feature_detected!("avx2") {
                 let a: core::arch::x86_64::__m256 = core::mem::transmute(self);
                 let b: core::arch::x86_64::__m256 = core::mem::transmute(rhs);
-                return core::mem::transmute(core::arch::x86_64::_mm256_add_ps(a, b));
+                return core::mem::transmute::<core::arch::x86_64::__m256, Self>(
+                    core::arch::x86_64::_mm256_add_ps(a, b),
+                );
             }
         }
         let mut out = [0.0f32; 8];
@@ -146,7 +148,9 @@ impl F32x8 {
             if is_x86_feature_detected!("avx2") {
                 let a: core::arch::x86_64::__m256 = core::mem::transmute(self);
                 let b: core::arch::x86_64::__m256 = core::mem::transmute(rhs);
-                return core::mem::transmute(core::arch::x86_64::_mm256_mul_ps(a, b));
+                return core::mem::transmute::<core::arch::x86_64::__m256, Self>(
+                    core::arch::x86_64::_mm256_mul_ps(a, b),
+                );
             }
         }
         let mut out = [0.0f32; 8];
@@ -168,7 +172,9 @@ impl F32x8 {
                 let s: core::arch::x86_64::__m256 = core::mem::transmute(self);
                 let ma: core::arch::x86_64::__m256 = core::mem::transmute(a);
                 let mb: core::arch::x86_64::__m256 = core::mem::transmute(b);
-                return core::mem::transmute(core::arch::x86_64::_mm256_fmadd_ps(s, ma, mb));
+                return core::mem::transmute::<core::arch::x86_64::__m256, Self>(
+                    core::arch::x86_64::_mm256_fmadd_ps(s, ma, mb),
+                );
             }
         }
         self.mul(a).add(b)
@@ -185,7 +191,9 @@ impl F32x8 {
             if is_x86_feature_detected!("avx2") {
                 let a: core::arch::x86_64::__m256 = core::mem::transmute(self);
                 let b: core::arch::x86_64::__m256 = core::mem::transmute(rhs);
-                return core::mem::transmute(core::arch::x86_64::_mm256_max_ps(a, b));
+                return core::mem::transmute::<core::arch::x86_64::__m256, Self>(
+                    core::arch::x86_64::_mm256_max_ps(a, b),
+                );
             }
         }
         let mut out = [0.0f32; 8];
@@ -208,7 +216,7 @@ impl F32x8 {
                 let b: core::arch::x86_64::__m256 = core::mem::transmute(rhs);
                 let cmp = core::arch::x86_64::_mm256_cmp_ps(a, b, core::arch::x86_64::_CMP_GT_OQ);
                 return MaskF32x8 {
-                    bits: core::mem::transmute(cmp),
+                    bits: core::mem::transmute::<core::arch::x86_64::__m256, [u32; 8]>(cmp),
                 };
             }
         }
@@ -244,7 +252,9 @@ impl MaskF32x8 {
                 let mask: core::arch::x86_64::__m256 = core::mem::transmute(self.bits);
                 let va: core::arch::x86_64::__m256 = core::mem::transmute(a);
                 let vb: core::arch::x86_64::__m256 = core::mem::transmute(b);
-                return core::mem::transmute(core::arch::x86_64::_mm256_blendv_ps(vb, va, mask));
+                return core::mem::transmute::<core::arch::x86_64::__m256, F32x8>(
+                    core::arch::x86_64::_mm256_blendv_ps(vb, va, mask),
+                );
             }
         }
         // Scalar branchless: bit-level blend
