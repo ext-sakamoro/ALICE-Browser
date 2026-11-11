@@ -86,7 +86,7 @@ pub struct SemanticFilter {
 
 impl SemanticFilter {
     #[must_use]
-    pub const fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             #[cfg(feature = "ml-filter")]
             ml: ml_classifier::MlClassifier::new(),

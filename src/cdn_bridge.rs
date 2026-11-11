@@ -43,7 +43,7 @@ impl BrowserCdnRouter {
         let (best_id, best_rtt) = self
             .edge_coords
             .iter()
-            .map(|(id, coord)| (*id, self.local_coord.distance(coord)))
+            .map(|(id, coord)| (*id, self.local_coord.predict_rtt(coord).to_f64() as f32))
             .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal))?;
         self.requests_routed += 1;
         Some(CdnRouteDecision {
@@ -63,7 +63,7 @@ mod tests {
     use super::*;
 
     fn coord(x: f32, y: f32) -> VivaldiCoord {
-        VivaldiCoord::new(x, y)
+        VivaldiCoord::at(f64::from(x), f64::from(y), 0.0, 0.0)
     }
 
     #[test]
@@ -73,6 +73,12 @@ mod tests {
         router.add_edge_node(2, coord(10.0, 0.0));
         let decision = router.route(0xABCD).unwrap();
         assert_eq!(decision.edge_node_id, 1);
+        // zero heights: the predicted RTT is the Euclidean distance, 1 for the node at (1, 0)
+        assert!(
+            (decision.estimated_rtt_ms - 1.0).abs() < 1e-3,
+            "{}",
+            decision.estimated_rtt_ms
+        );
     }
 
     #[test]

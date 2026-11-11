@@ -55,7 +55,7 @@ pub struct BrowserEngine {
 
 impl BrowserEngine {
     #[must_use]
-    pub const fn new(viewport_width: f32) -> Self {
+    pub fn new(viewport_width: f32) -> Self {
         Self {
             filter: SemanticFilter::new(),
             viewport_width,

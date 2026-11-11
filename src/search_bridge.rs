@@ -4,11 +4,14 @@
 //!
 //! Author: Moroya Sakamoto
 
-use alice_search::FmIndex;
+use alice_search::AliceIndex;
+
+/// Suffix-array sampling step of the index: every 4th position is kept (lower = faster locate, more memory)
+const SAMPLE_STEP: usize = 4;
 
 /// DOM content search index
 pub struct DomSearchIndex {
-    index: FmIndex,
+    index: AliceIndex,
     text_len: usize,
     pub queries_count: u64,
 }
@@ -17,7 +20,7 @@ impl DomSearchIndex {
     /// Build search index from extracted DOM text
     pub fn build(text: &str) -> Self {
         let text_len = text.len();
-        let index = FmIndex::build(text.as_bytes());
+        let index = AliceIndex::build(text.as_bytes(), SAMPLE_STEP);
         Self {
             index,
             text_len,
@@ -32,9 +35,12 @@ impl DomSearchIndex {
     }
 
     /// Locate all pattern occurrences with byte offsets
+    /// Byte offsets of every occurrence, in increasing order
     pub fn locate(&mut self, pattern: &str) -> Vec<usize> {
         self.queries_count += 1;
-        self.index.locate(pattern.as_bytes())
+        let mut offsets = self.index.locate_all(pattern.as_bytes());
+        offsets.sort_unstable();
+        offsets
     }
 
     /// Find with surrounding context window
@@ -44,7 +50,8 @@ impl DomSearchIndex {
         context_bytes: usize,
     ) -> Vec<(usize, usize, usize)> {
         self.queries_count += 1;
-        let offsets = self.index.locate(pattern.as_bytes());
+        let mut offsets = self.index.locate_all(pattern.as_bytes());
+        offsets.sort_unstable();
         offsets
             .into_iter()
             .map(|off| {

@@ -80,8 +80,8 @@ ALICE-Browser connects to other ALICE ecosystem crates via feature-gated bridge 
 
 | Bridge | Feature | Target Crate | Description |
 |--------|---------|--------------|-------------|
-| `text_bridge` | `text` | [ALICE-Text](../ALICE-Text) | Advanced text shaping and rendering |
-| `cache_bridge` | `cache` | [ALICE-Cache](../ALICE-Cache) | DOM classification caching with FNV-1a content hashing |
+| `text_bridge` | `text` | [ALICE-Text](https://github.com/ext-sakamoro/ALICE-Text) | Advanced text shaping and rendering |
+| `cache_bridge` | `cache` | [ALICE-Cache](https://github.com/ext-sakamoro/ALICE-Cache) | DOM classification caching with FNV-1a content hashing |
 | `lol_bridge` | `lol` | [ALICE-LOL](https://github.com/ext-sakamoro/ALICE-LOL) | Law-Oriented Language DSL parsing (120 constructs) |
 
 ### Cache Bridge (feature: `cache`)
@@ -90,7 +90,7 @@ Caches DOM node classification results (Content, Navigation, Ad, Tracker, Widget
 
 ```toml
 [dependencies]
-alice-browser = { path = "../ALICE-Browser", features = ["cache"] }
+alice-browser = { git = "https://github.com/ext-sakamoro/ALICE-Browser", branch = "main", features = ["cache"] }
 ```
 
 ```rust
@@ -172,7 +172,7 @@ Law-Oriented Language DSL parsing via the `parse_lol` helper. Exposes all 120 LO
 
 ```toml
 [dependencies]
-alice-browser = { path = "../ALICE-Browser", features = ["lol"] }
+alice-browser = { git = "https://github.com/ext-sakamoro/ALICE-Browser", branch = "main", features = ["lol"] }
 ```
 
 ```rust

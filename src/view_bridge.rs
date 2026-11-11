@@ -33,6 +33,12 @@ pub struct SdfUiBatch {
     pub total_elements: u64,
 }
 
+impl Default for SdfUiBatch {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SdfUiBatch {
     pub fn new() -> Self {
         Self {

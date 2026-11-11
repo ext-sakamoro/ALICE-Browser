@@ -16,105 +16,33 @@ jobs:
       matrix:
         os: [macos-latest, ubuntu-latest]
     steps:
+      # the ALICE crates are git dependencies (branch main): cargo fetches the real ones, nothing is
+      # checked out next to this repository and no crate is stubbed
       - uses: actions/checkout@v5
-        with:
-          path: ALICE-Browser
-
-      - uses: actions/checkout@v5
-        with:
-          repository: ext-sakamoro/ALICE-SDF
-          path: ALICE-SDF
-
-      # The real ALICE-Analytics at main, so the telemetry feature is built and tested against it
-      # (the lock CI generates then holds alice-det-math 0.6 through it beside 0.5.2 through ALICE-SDF;
-      # one generation once ALICE-SDF and ALICE-LOL move to 0.6 and both are taken from main)
-      - uses: actions/checkout@v5
-        with:
-          repository: ext-sakamoro/ALICE-Analytics
-          path: ALICE-Analytics
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
       - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: ALICE-Browser
-
-      - name: Create dependency stubs
-        run: |
-          # SDF optional deps
-          for crate_info in \
-            "ALICE-Physics:alice-physics" \
-            "ALICE-Codec:alice-codec" \
-            "ALICE-Streaming-Protocol:libasp" \
-            "ALICE-Cache:alice-cache"; do
-            dir=$(echo "$crate_info" | cut -d: -f1)
-            pkg=$(echo "$crate_info" | cut -d: -f2)
-            mkdir -p "$dir/src"
-            cat > "$dir/Cargo.toml" << TOML
-          [package]
-          name = "$pkg"
-          version = "0.1.0"
-          edition = "2021"
-          [lib]
-          path = "src/lib.rs"
-          [features]
-          default = []
-          std = []
-          TOML
-            echo "" > "$dir/src/lib.rs"
-          done
-
-          # ALICE-LOL
-          mkdir -p "ALICE-LOL/alice-lol/src"
-          cat > "ALICE-LOL/alice-lol/Cargo.toml" << TOML
-          [package]
-          name = "alice-lol"
-          version = "0.1.0"
-          edition = "2021"
-          [lib]
-          path = "src/lib.rs"
-          TOML
-          echo "" > "ALICE-LOL/alice-lol/src/lib.rs"
-
-          # Browser optional deps
-          for crate_info in \
-            "ALICE-ML:alice-ml" \
-            "ALICE-Search:alice-search" \
-            "ALICE-Text:alice-text" \
-            "ALICE-CDN:alice-cdn"; do
-            dir=$(echo "$crate_info" | cut -d: -f1)
-            pkg=$(echo "$crate_info" | cut -d: -f2)
-            mkdir -p "$dir/src"
-            cat > "$dir/Cargo.toml" << TOML
-          [package]
-          name = "$pkg"
-          version = "0.1.0"
-          edition = "2021"
-          [lib]
-          path = "src/lib.rs"
-          [features]
-          default = []
-          std = []
-          TOML
-            echo "" > "$dir/src/lib.rs"
-          done
 
       - name: Build (default)
-        working-directory: ALICE-Browser
         run: cargo build --lib
 
       - name: Test
-        working-directory: ALICE-Browser
         run: cargo test --lib
 
       - name: Clippy (telemetry)
-        working-directory: ALICE-Browser
         run: cargo clippy --lib --profile test --no-default-features --features telemetry -- -D warnings
 
       - name: Test (telemetry)
-        working-directory: ALICE-Browser
         run: cargo test --lib --no-default-features --features telemetry
+
+      # every bridge against the real crate (ml-filter, lol, search, text, cdn, smart-cache, telemetry)
+      - name: Clippy (all features)
+        run: cargo clippy --lib --profile test --all-features -- -D warnings
+
+      - name: Test (all features)
+        run: cargo test --lib --all-features
 
   fmt:
     name: Format
