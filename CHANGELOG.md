@@ -4,6 +4,10 @@ All notable changes to ALICE-Browser will be documented in this file.
 
 ## [Unreleased]
 
+### Security
+
+- web から取った画像は上限 (1 辺 16384 px、確保 256 MiB) の内でだけ decode する 上限は header の段で拒み、pixel を 1 つも decode しない (従来の `image::load_from_memory` は既定の 512 MiB まで確保した)
+
 ### Changed
 
 - alice-ml / alice-sdf / alice-lol / alice-cache / alice-search / alice-analytics / alice-text / alice-cdn を git の branch main + version で引く CI は隣の checkout と空の stub crate をやめ、全 feature を実物に対して build・clippy・test する (stub のために 3 つの bridge の compile 失敗が見えていなかった)

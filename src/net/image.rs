@@ -102,6 +102,25 @@ impl ImageLoader {
     }
 }
 
+/// The most bytes the decoder may allocate for one image fetched from the web (256 MiB, the ecosystem's limit for one
+/// decode)
+const MAX_WEB_IMAGE_ALLOC: u64 = 256 * 1024 * 1024;
+
+/// The widest and tallest image accepted from the web (16384 pixels, a common texture limit)
+const MAX_WEB_IMAGE_SIDE: u32 = 16_384;
+
+/// Decodes an image fetched from the web (not trusted) within explicit limits: at most [`MAX_WEB_IMAGE_SIDE`] pixels
+/// on a side and [`MAX_WEB_IMAGE_ALLOC`] bytes allocated, both refused from the header before any pixel is decoded
+fn decode_web_image(bytes: &[u8]) -> Result<image::DynamicImage, image::ImageError> {
+    let mut limits = image::Limits::default();
+    limits.max_image_width = Some(MAX_WEB_IMAGE_SIDE);
+    limits.max_image_height = Some(MAX_WEB_IMAGE_SIDE);
+    limits.max_alloc = Some(MAX_WEB_IMAGE_ALLOC);
+    let mut reader = image::ImageReader::new(std::io::Cursor::new(bytes)).with_guessed_format()?;
+    reader.limits(limits);
+    reader.decode()
+}
+
 fn fetch_and_decode(url: &str) -> Option<ImageData> {
     let resp = reqwest::blocking::Client::builder()
         .timeout(std::time::Duration::from_secs(10))
@@ -116,7 +135,7 @@ fn fetch_and_decode(url: &str) -> Option<ImageData> {
     }
 
     let bytes = resp.bytes().ok()?;
-    let img = image::load_from_memory(&bytes).ok()?;
+    let img = decode_web_image(&bytes).ok()?;
     let rgba = img.to_rgba8();
     let (w, h) = rgba.dimensions();
 
@@ -149,5 +168,71 @@ mod tests {
         loader.request("https://example.com/img.png");
         loader.request("https://example.com/img.png"); // should not duplicate
         assert_eq!(loader.pending.len(), 1);
+    }
+}
+
+#[cfg(test)]
+mod decode_limit_tests {
+    use super::decode_web_image;
+
+    fn crc32(bytes: &[u8]) -> u32 {
+        let mut c = 0xFFFF_FFFFu32;
+        for &b in bytes {
+            c ^= u32::from(b);
+            for _ in 0..8 {
+                c = if c & 1 != 0 {
+                    0xEDB8_8320 ^ (c >> 1)
+                } else {
+                    c >> 1
+                };
+            }
+        }
+        !c
+    }
+
+    fn chunk(out: &mut Vec<u8>, kind: &[u8; 4], data: &[u8]) {
+        out.extend_from_slice(&u32::try_from(data.len()).unwrap().to_be_bytes());
+        let mut body = kind.to_vec();
+        body.extend_from_slice(data);
+        out.extend_from_slice(&body);
+        out.extend_from_slice(&crc32(&body).to_be_bytes());
+    }
+
+    /// A PNG of `w` x `h` RGBA 8-bit whose image data is an empty zlib stream (the png decoder reads up to the first
+    /// IDAT before it reports the size, so the chunk has to be there for the limits to be reached)
+    fn header_only_png(w: u32, h: u32) -> Vec<u8> {
+        let mut out = b"\x89PNG\r\n\x1a\n".to_vec();
+        let mut ihdr = Vec::new();
+        ihdr.extend_from_slice(&w.to_be_bytes());
+        ihdr.extend_from_slice(&h.to_be_bytes());
+        ihdr.extend_from_slice(&[8, 6, 0, 0, 0]);
+        chunk(&mut out, b"IHDR", &ihdr);
+        chunk(
+            &mut out,
+            b"IDAT",
+            &[0x78, 0x9c, 0x03, 0x00, 0x00, 0x00, 0x00, 0x01],
+        );
+        chunk(&mut out, b"IEND", &[]);
+        out
+    }
+
+    #[test]
+    fn an_image_past_the_limits_is_refused_from_its_header() {
+        // a page's image is not trusted: 10000 x 10000 RGBA (400 MB, within image's default 512 MiB) and 20000 x 20
+        // (wider than the 16384 limit) are refused from the header, before any pixel is decoded
+        let mut compared = 0;
+        for (w, h) in [(10_000, 10_000), (20_000, 20)] {
+            let e = decode_web_image(&header_only_png(w, h)).unwrap_err();
+            assert!(matches!(e, image::ImageError::Limits(_)), "{w}x{h}: {e}");
+            compared += 1;
+        }
+        assert_eq!(compared, 2);
+    }
+
+    #[test]
+    fn an_image_within_the_limits_reaches_the_decoder() {
+        // 4000 x 3000 RGBA is 48 MB: the header passes, and the missing image data then fails in the decoder
+        let e = decode_web_image(&header_only_png(4000, 3000)).unwrap_err();
+        assert!(!matches!(e, image::ImageError::Limits(_)), "{e}");
     }
 }
