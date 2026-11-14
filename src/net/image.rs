@@ -109,9 +109,32 @@ const MAX_WEB_IMAGE_ALLOC: u64 = 256 * 1024 * 1024;
 /// The widest and tallest image accepted from the web (16384 pixels, a common texture limit)
 const MAX_WEB_IMAGE_SIDE: u32 = 16_384;
 
-/// Decodes an image fetched from the web (not trusted) within explicit limits: at most [`MAX_WEB_IMAGE_SIDE`] pixels
-/// on a side and [`MAX_WEB_IMAGE_ALLOC`] bytes allocated, both refused from the header before any pixel is decoded
+/// The most bytes read from the network for one image (64 MiB) a body that declares or sends more is dropped before
+/// it is decoded
+const MAX_WEB_IMAGE_BODY: u64 = 64 * 1024 * 1024;
+
+/// Reads at most `cap` bytes from `r`: `None` when the body is longer than `cap` (one byte past the cap is read to
+/// tell the two apart, never more)
+fn read_capped(r: impl std::io::Read, cap: u64) -> Option<Vec<u8>> {
+    use std::io::Read as _;
+    let mut out = Vec::new();
+    r.take(cap.saturating_add(1)).read_to_end(&mut out).ok()?;
+    (out.len() as u64 <= cap).then_some(out)
+}
+
+/// Decodes an image fetched from the web (not trusted) within explicit limits, all refused from the header before
+/// any pixel is decoded: at most [`MAX_WEB_IMAGE_SIDE`] pixels on a side, and [`MAX_WEB_IMAGE_ALLOC`] bytes both for
+/// the decoder's buffer and for the RGBA 8-bit image the caller converts it to (4 bytes a pixel whatever the source
+/// colour type, so a grey image cannot pass the decoder's limit at a quarter of the size the conversion allocates)
 fn decode_web_image(bytes: &[u8]) -> Result<image::DynamicImage, image::ImageError> {
+    let (w, h) = image::ImageReader::new(std::io::Cursor::new(bytes))
+        .with_guessed_format()?
+        .into_dimensions()?;
+    if u64::from(w) * u64::from(h) * 4 > MAX_WEB_IMAGE_ALLOC {
+        return Err(image::ImageError::Limits(
+            image::error::LimitError::from_kind(image::error::LimitErrorKind::InsufficientMemory),
+        ));
+    }
     let mut limits = image::Limits::default();
     limits.max_image_width = Some(MAX_WEB_IMAGE_SIDE);
     limits.max_image_height = Some(MAX_WEB_IMAGE_SIDE);
@@ -134,7 +157,13 @@ fn fetch_and_decode(url: &str) -> Option<ImageData> {
         return None;
     }
 
-    let bytes = resp.bytes().ok()?;
+    if resp
+        .content_length()
+        .is_some_and(|n| n > MAX_WEB_IMAGE_BODY)
+    {
+        return None;
+    }
+    let bytes = read_capped(resp, MAX_WEB_IMAGE_BODY)?;
     let img = decode_web_image(&bytes).ok()?;
     let rgba = img.to_rgba8();
     let (w, h) = rgba.dimensions();
@@ -201,11 +230,16 @@ mod decode_limit_tests {
     /// A PNG of `w` x `h` RGBA 8-bit whose image data is an empty zlib stream (the png decoder reads up to the first
     /// IDAT before it reports the size, so the chunk has to be there for the limits to be reached)
     fn header_only_png(w: u32, h: u32) -> Vec<u8> {
+        png_with_colour(w, h, 6)
+    }
+
+    /// The same with an explicit PNG colour type (0 = grey 8-bit, 6 = RGBA 8-bit)
+    fn png_with_colour(w: u32, h: u32, colour: u8) -> Vec<u8> {
         let mut out = b"\x89PNG\r\n\x1a\n".to_vec();
         let mut ihdr = Vec::new();
         ihdr.extend_from_slice(&w.to_be_bytes());
         ihdr.extend_from_slice(&h.to_be_bytes());
-        ihdr.extend_from_slice(&[8, 6, 0, 0, 0]);
+        ihdr.extend_from_slice(&[8, colour, 0, 0, 0]);
         chunk(&mut out, b"IHDR", &ihdr);
         chunk(
             &mut out,
@@ -234,5 +268,26 @@ mod decode_limit_tests {
         // 4000 x 3000 RGBA is 48 MB: the header passes, and the missing image data then fails in the decoder
         let e = decode_web_image(&header_only_png(4000, 3000)).unwrap_err();
         assert!(!matches!(e, image::ImageError::Limits(_)), "{e}");
+    }
+
+    #[test]
+    fn a_grey_image_is_measured_by_the_rgba_it_becomes() {
+        // 9000 x 9000 grey 8-bit decodes into 81 MB (within the 256 MiB decoder limit) but becomes 324 MB as RGBA:
+        // refused from the header
+        let e = super::decode_web_image(&png_with_colour(9000, 9000, 0)).unwrap_err();
+        assert!(matches!(e, image::ImageError::Limits(_)), "{e}");
+        // 8000 x 8000 grey is 256 MB as RGBA (within 256 MiB): the header passes and the empty data fails later
+        let e = super::decode_web_image(&png_with_colour(8000, 8000, 0)).unwrap_err();
+        assert!(!matches!(e, image::ImageError::Limits(_)), "{e}");
+    }
+
+    #[test]
+    fn a_body_longer_than_the_cap_is_dropped() {
+        use super::read_capped;
+        assert_eq!(read_capped(&[7u8; 10][..], 10), Some(vec![7u8; 10]));
+        assert_eq!(read_capped(&[7u8; 11][..], 10), None);
+        assert_eq!(read_capped(&[][..], 10), Some(Vec::new()));
+        // a source that never ends is read only to one byte past the cap
+        assert_eq!(read_capped(std::io::repeat(1), 1000), None);
     }
 }

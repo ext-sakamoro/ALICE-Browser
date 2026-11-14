@@ -6,7 +6,8 @@ All notable changes to ALICE-Browser will be documented in this file.
 
 ### Security
 
-- web から取った画像は上限 (1 辺 16384 px、確保 256 MiB) の内でだけ decode する 上限は header の段で拒み、pixel を 1 つも decode しない (従来の `image::load_from_memory` は既定の 512 MiB まで確保した)
+- web から取った画像は上限 (1 辺 16384 px、確保 256 MiB) の内でだけ decode する 上限は header の段で拒み、pixel を 1 つも decode しない 256 MiB は decoder の buffer と、変換後の RGBA (1 pixel 4 byte、元の色形式によらない) の両方に掛かる (従来の `image::load_from_memory` は既定の 512 MiB まで確保し、灰色の画像は RGBA への変換で 4 倍に膨らんだ)
+- web から取る画像の本文は 64 MiB まで 宣言長がそれを超える応答と、送られてきた本文が超えた応答は decode しない (従来は本文を全部読んでいた)
 
 ### Changed
 
